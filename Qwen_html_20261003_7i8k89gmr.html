@@ -1,0 +1,2577 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>RFID服装零售进销存WMS原型</title>
+  <style>
+    :root {
+      --bg: #f6f7fb;
+      --card: #ffffff;
+      --line: #e5e7eb;
+      --text: #111827;
+      --muted: #6b7280;
+      --primary: #7c3aed;
+      --primary-soft: #f3e8ff;
+      --success: #16a34a;
+      --success-soft: #dcfce7;
+      --warning: #d97706;
+      --warning-soft: #fef3c7;
+      --danger: #dc2626;
+      --danger-soft: #fee2e2;
+      --info: #2563eb;
+      --info-soft: #dbeafe;
+      --dark: #0f172a;
+      --shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+      --radius: 20px;
+    }
+
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; }
+    body {
+      font-family: Inter, "PingFang SC", "Microsoft YaHei", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    button, input, select, textarea { font-family: inherit; }
+    .hidden { display: none !important; }
+
+    /* Login */
+    #loginPage {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      background:
+        radial-gradient(circle at top left, rgba(124, 58, 237, 0.26), transparent 30%),
+        radial-gradient(circle at bottom right, rgba(37, 99, 235, 0.18), transparent 28%),
+        linear-gradient(135deg, #0f172a 0%, #111827 100%);
+    }
+
+    .login-card {
+      width: min(480px, 100%);
+      background: rgba(255,255,255,0.98);
+      border-radius: 28px;
+      box-shadow: 0 30px 80px rgba(0,0,0,0.35);
+      padding: 30px;
+    }
+
+    .login-logo {
+      display: flex;
+      gap: 14px;
+      align-items: center;
+      margin-bottom: 24px;
+    }
+
+    .logo-badge {
+      width: 52px;
+      height: 52px;
+      border-radius: 16px;
+      background: linear-gradient(135deg, #7c3aed, #2563eb);
+      color: #fff;
+      font-weight: 900;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      box-shadow: 0 12px 24px rgba(124,58,237,0.3);
+      flex: 0 0 auto;
+    }
+
+    .login-title { font-size: 24px; font-weight: 900; line-height: 1.1; }
+    .login-sub { color: var(--muted); font-size: 13px; margin-top: 4px; }
+
+    .form-group { margin-bottom: 14px; }
+    label { display: block; font-size: 13px; font-weight: 700; color: #374151; margin-bottom: 6px; }
+    input, select, textarea {
+      width: 100%;
+      border: 1px solid #d1d5db;
+      border-radius: 12px;
+      padding: 11px 12px;
+      font-size: 14px;
+      outline: none;
+      background: #fff;
+      color: var(--text);
+    }
+    input:focus, select:focus, textarea:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(124,58,237,0.12);
+    }
+
+    .form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+    .login-btn {
+      width: 100%;
+      border: none;
+      background: linear-gradient(135deg, #7c3aed, #4f46e5);
+      color: #fff;
+      font-weight: 900;
+      padding: 13px 16px;
+      border-radius: 14px;
+      cursor: pointer;
+      margin-top: 10px;
+      box-shadow: 0 14px 28px rgba(124,58,237,0.28);
+    }
+    .login-meta {
+      display: flex;
+      justify-content: space-between;
+      color: var(--muted);
+      font-size: 12px;
+      margin-top: 16px;
+    }
+
+    /* App layout */
+    #app { min-height: 100vh; }
+    .app-shell { display: flex; min-height: 100vh; }
+
+    .sidebar {
+      width: 250px;
+      background: var(--dark);
+      color: #cbd5e1;
+      position: fixed;
+      top: 0;
+      bottom: 0;
+      left: 0;
+      display: flex;
+      flex-direction: column;
+      z-index: 30;
+    }
+
+    .brand {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      padding: 22px 18px;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+    }
+
+    .brand-badge {
+      width: 42px;
+      height: 42px;
+      border-radius: 14px;
+      background: linear-gradient(135deg, #7c3aed, #2563eb);
+      color: #fff;
+      font-weight: 900;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex: 0 0 auto;
+    }
+
+    .brand-text .title { color: #fff; font-weight: 900; font-size: 15px; line-height: 1.2; }
+    .brand-text .sub { color: #94a3b8; font-size: 11px; margin-top: 3px; }
+
+    .nav {
+      padding: 14px;
+      overflow: auto;
+      flex: 1;
+    }
+
+    .nav-item {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 14px;
+      border: none;
+      background: transparent;
+      color: #94a3b8;
+      border-radius: 14px;
+      cursor: pointer;
+      text-align: left;
+      margin-bottom: 6px;
+      font-size: 14px;
+      transition: 0.18s ease;
+    }
+
+    .nav-item:hover { background: rgba(255,255,255,0.06); color: #fff; }
+    .nav-item.active {
+      background: linear-gradient(135deg, rgba(124,58,237,0.92), rgba(37,99,235,0.92));
+      color: #fff;
+      box-shadow: 0 12px 24px rgba(124,58,237,0.24);
+    }
+
+    .nav-icon {
+      width: 30px;
+      height: 30px;
+      border-radius: 10px;
+      background: rgba(255,255,255,0.08);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex: 0 0 auto;
+    }
+
+    .sidebar-footer {
+      padding: 16px 18px;
+      border-top: 1px solid rgba(255,255,255,0.08);
+      color: #64748b;
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    .main {
+      flex: 1;
+      margin-left: 250px;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .topbar {
+      height: 74px;
+      background: rgba(255,255,255,0.92);
+      backdrop-filter: blur(10px);
+      border-bottom: 1px solid var(--line);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 0 24px;
+      position: sticky;
+      top: 0;
+      z-index: 20;
+    }
+
+    .breadcrumb { color: var(--muted); font-size: 12px; margin-bottom: 4px; }
+    .page-title { font-size: 22px; font-weight: 900; }
+
+    .topbar-right { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+    .topbar-right select { width: auto; min-width: 150px; }
+    .topbar-right input { width: 220px; }
+
+    .avatar {
+      width: 42px;
+      height: 42px;
+      border-radius: 14px;
+      background: #111827;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+    }
+
+    .content { padding: 24px; display: flex; flex-direction: column; gap: 20px; }
+    .page { display: none; }
+    .page.active { display: block; animation: fadeIn 0.22s ease; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+
+    /* Common */
+    .grid { display: grid; gap: 18px; }
+    .cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .cols-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    .cols-6 { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+    .span-2 { grid-column: span 2; }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 20px;
+      min-width: 0;
+    }
+
+    .card-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 14px;
+      margin-bottom: 16px;
+    }
+
+    .card-title { font-size: 16px; font-weight: 900; }
+    .card-sub { color: var(--muted); font-size: 12px; margin-top: 4px; line-height: 1.5; }
+
+    .notice {
+      background: #f8f5ff;
+      color: #5b21b6;
+      border: 1px solid #ddd6fe;
+      padding: 14px 16px;
+      border-radius: 16px;
+      font-size: 14px;
+      line-height: 1.6;
+    }
+
+    .toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      flex-wrap: wrap;
+      margin-bottom: 18px;
+    }
+
+    .filters { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+    .filters input, .filters select { width: auto; min-width: 170px; }
+    .actions { display: flex; gap: 10px; flex-wrap: wrap; }
+
+    .btn {
+      border: none;
+      border-radius: 12px;
+      padding: 10px 14px;
+      cursor: pointer;
+      font-weight: 800;
+      font-size: 14px;
+      transition: 0.16s ease;
+    }
+    .btn:hover { transform: translateY(-1px); opacity: 0.95; }
+    .btn-primary { background: var(--primary); color: #fff; }
+    .btn-light { background: #f3f4f6; color: #111827; }
+    .btn-danger { background: var(--danger-soft); color: var(--danger); }
+    .btn-sm { padding: 7px 10px; font-size: 12px; border-radius: 10px; }
+
+    .action-list { display: flex; flex-direction: column; gap: 10px; }
+    .action-list .btn { width: 100%; }
+
+    .table-wrap { overflow: auto; }
+    table { width: 100%; border-collapse: collapse; min-width: 980px; }
+    th, td {
+      padding: 12px 10px;
+      border-bottom: 1px solid #eef2f7;
+      text-align: left;
+      font-size: 14px;
+      white-space: nowrap;
+      vertical-align: middle;
+    }
+    th { color: var(--muted); font-size: 12px; }
+    tbody tr:hover { background: #faf8ff; }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+    .badge-green { background: var(--success-soft); color: #15803d; }
+    .badge-yellow { background: var(--warning-soft); color: #b45309; }
+    .badge-red { background: var(--danger-soft); color: #b91c1c; }
+    .badge-blue { background: var(--info-soft); color: #1d4ed8; }
+    .badge-gray { background: #f3f4f6; color: #4b5563; }
+    .badge-purple { background: var(--primary-soft); color: #6d28d9; }
+
+    .kpi-card { display: flex; flex-direction: column; gap: 10px; min-height: 132px; }
+    .kpi-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+    .kpi-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      background: var(--primary-soft);
+    }
+    .kpi-value { font-size: 30px; font-weight: 900; line-height: 1; }
+    .kpi-label { color: var(--muted); font-size: 13px; }
+    .kpi-trend { font-size: 12px; font-weight: 800; }
+    .trend-up { color: var(--success); }
+    .trend-warn { color: var(--warning); }
+    .trend-danger { color: var(--danger); }
+
+    .progress {
+      height: 8px;
+      border-radius: 999px;
+      background: #e5e7eb;
+      overflow: hidden;
+    }
+    .progress-bar {
+      height: 100%;
+      border-radius: 999px;
+      background: linear-gradient(90deg, #a78bfa, #7c3aed);
+    }
+
+    .chart {
+      height: 220px;
+      display: flex;
+      align-items: flex-end;
+      gap: 14px;
+      padding-top: 18px;
+    }
+    .bar-wrap { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+    .bar {
+      width: 100%;
+      max-width: 46px;
+      border-radius: 14px 14px 5px 5px;
+      background: linear-gradient(180deg, #c4b5fd, #7c3aed);
+      box-shadow: 0 12px 18px rgba(124,58,237,0.16);
+    }
+    .bar-label { color: var(--muted); font-size: 12px; }
+
+    .task-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 12px 0;
+      border-bottom: 1px solid #eef2f7;
+      font-size: 14px;
+    }
+    .task-item:last-child { border-bottom: none; padding-bottom: 0; }
+
+    .info-list { display: grid; gap: 10px; }
+    .info-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 10px 0;
+      border-bottom: 1px solid #eef2f7;
+      font-size: 14px;
+    }
+    .info-row:last-child { border-bottom: none; }
+
+    .timeline { position: relative; padding-left: 22px; }
+    .timeline-item { position: relative; padding-bottom: 18px; }
+    .timeline-item::before {
+      content: '';
+      position: absolute;
+      left: -18px;
+      top: 6px;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--primary);
+    }
+    .timeline-item::after {
+      content: '';
+      position: absolute;
+      left: -14px;
+      top: 14px;
+      bottom: -2px;
+      width: 2px;
+      background: #e5e7eb;
+    }
+    .timeline-item:last-child::after { display: none; }
+    .timeline-title { font-weight: 800; }
+    .timeline-sub { color: var(--muted); font-size: 12px; margin-top: 3px; line-height: 1.5; }
+
+    .radio-cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+    .radio-card {
+      border: 1px solid #d1d5db;
+      border-radius: 16px;
+      padding: 14px;
+      cursor: pointer;
+      background: #fff;
+      transition: 0.16s ease;
+    }
+    .radio-card:hover { border-color: #c4b5fd; }
+    .radio-card.selected {
+      border-color: var(--primary);
+      background: var(--primary-soft);
+      box-shadow: 0 0 0 3px rgba(124,58,237,0.08);
+    }
+    .radio-title { font-weight: 900; margin-bottom: 4px; }
+    .radio-sub { color: var(--muted); font-size: 12px; }
+
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.56);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      z-index: 100;
+    }
+    .modal {
+      width: min(820px, 100%);
+      background: #fff;
+      border-radius: 24px;
+      overflow: hidden;
+      box-shadow: 0 30px 80px rgba(0,0,0,0.28);
+    }
+    .modal-header {
+      padding: 20px;
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 14px;
+      border-bottom: 1px solid var(--line);
+    }
+    .modal-title { font-size: 18px; font-weight: 900; }
+    .modal-sub { color: var(--muted); font-size: 12px; margin-top: 4px; }
+    .modal-body { padding: 20px; max-height: 65vh; overflow: auto; }
+    .modal-footer {
+      padding: 18px 20px;
+      border-top: 1px solid var(--line);
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+    }
+
+    .toast {
+      position: fixed;
+      right: 24px;
+      bottom: 24px;
+      z-index: 200;
+      background: #111827;
+      color: #fff;
+      padding: 14px 18px;
+      border-radius: 14px;
+      box-shadow: 0 18px 40px rgba(0,0,0,0.28);
+      opacity: 0;
+      transform: translateY(10px);
+      pointer-events: none;
+      transition: 0.25s ease;
+      max-width: 380px;
+      line-height: 1.5;
+    }
+    .toast.show { opacity: 1; transform: translateY(0); }
+
+    @media (max-width: 1280px) {
+      .cols-6 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+      .cols-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .cols-3 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .span-2 { grid-column: auto; }
+    }
+
+    @media (max-width: 900px) {
+      .sidebar { width: 84px; }
+      .brand-text, .nav-label, .sidebar-footer { display: none; }
+      .main { margin-left: 84px; }
+      .content { padding: 14px; }
+      .cols-2, .cols-3, .cols-4, .cols-6 { grid-template-columns: 1fr; }
+      .form-grid, .radio-cards { grid-template-columns: 1fr; }
+      .topbar { padding: 0 14px; flex-wrap: wrap; height: auto; padding-top: 12px; padding-bottom: 12px; }
+      .topbar-right input { width: 160px; }
+    }
+  </style>
+</head>
+<body>
+  <!-- 登录页 -->
+  <div id="loginPage">
+    <div class="login-card">
+      <div class="login-logo">
+        <div class="logo-badge">RF</div>
+        <div>
+          <div class="login-title">RFID Fashion WMS</div>
+          <div class="login-sub">服装零售进销存 · RFID 仓储管理平台原型</div>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>门店 / 仓库</label>
+        <select id="loginStore">
+          <option>上海旗舰店</option>
+          <option>北京国贸店</option>
+          <option>杭州旗舰店</option>
+          <option>华东总仓</option>
+          <option>华南区域仓</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label>角色</label>
+        <select>
+          <option>管理员</option>
+          <option>店长</option>
+          <option>仓管</option>
+          <option>收银员</option>
+          <option>盘点员</option>
+          <option>财务</option>
+        </select>
+      </div>
+
+      <div class="form-grid">
+        <div class="form-group">
+          <label>账号</label>
+          <input value="admin" />
+        </div>
+        <div class="form-group">
+          <label>密码</label>
+          <input type="password" value="123456" />
+        </div>
+      </div>
+
+      <button class="login-btn" onclick="login()">进入系统</button>
+      <div class="login-meta">
+        <span>版本：v1.0 原型</span>
+        <span>2026-10-03</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 主应用 -->
+  <div id="app" class="hidden">
+    <div class="app-shell">
+      <aside class="sidebar">
+        <div class="brand">
+          <div class="brand-badge">RF</div>
+          <div class="brand-text">
+            <div class="title">RFID Fashion WMS</div>
+            <div class="sub">服装零售进销存</div>
+          </div>
+        </div>
+
+        <div class="nav">
+          <button class="nav-item active" data-page="dashboard"><span class="nav-icon">📊</span><span class="nav-label">仪表盘</span></button>
+          <button class="nav-item" data-page="rfid"><span class="nav-icon">📡</span><span class="nav-label">RFID控制台</span></button>
+          <button class="nav-item" data-page="product"><span class="nav-icon">👕</span><span class="nav-label">商品档案</span></button>
+          <button class="nav-item" data-page="inbound"><span class="nav-icon">📥</span><span class="nav-label">采购入库</span></button>
+          <button class="nav-item" data-page="sales"><span class="nav-icon">🛍️</span><span class="nav-label">销售出库</span></button>
+          <button class="nav-item" data-page="inventory"><span class="nav-icon">📦</span><span class="nav-label">库存管理</span></button>
+          <button class="nav-item" data-page="stocktake"><span class="nav-icon">🔍</span><span class="nav-label">盘点作业</span></button>
+          <button class="nav-item" data-page="transfer"><span class="nav-icon">🚚</span><span class="nav-label">调拨补货</span></button>
+          <button class="nav-item" data-page="returns"><span class="nav-icon">↩️</span><span class="nav-label">退货售后</span></button>
+          <button class="nav-item" data-page="reports"><span class="nav-icon">📈</span><span class="nav-label">报表分析</span></button>
+          <button class="nav-item" data-page="devices"><span class="nav-icon">🖥️</span><span class="nav-label">设备集成</span></button>
+          <button class="nav-item" data-page="settings"><span class="nav-icon">⚙️</span><span class="nav-label">系统设置</span></button>
+        </div>
+
+        <div class="sidebar-footer">
+          当前为交互原型，内置模拟 RFID 读取、收银、盘点、门禁等演示动作。
+        </div>
+      </aside>
+
+      <div class="main">
+        <header class="topbar">
+          <div>
+            <div class="breadcrumb" id="breadcrumb">首页 / 仪表盘</div>
+            <div class="page-title" id="topPageTitle">仪表盘</div>
+          </div>
+          <div class="topbar-right">
+            <select onchange="changeStore(this.value)">
+              <option>上海旗舰店</option>
+              <option>北京国贸店</option>
+              <option>杭州旗舰店</option>
+              <option>华东总仓</option>
+            </select>
+            <input placeholder="搜索 SKU / EPC / 订单号" />
+            <div class="avatar">AM</div>
+          </div>
+        </header>
+
+        <main class="content">
+          <!-- 仪表盘 -->
+          <section id="page-dashboard" class="page active">
+            <div class="notice">
+              本原型面向服装零售场景，围绕“款色码 + RFID 唯一码”设计，覆盖采购入库、门店销售、库存管理、RFID盘点、调拨补货、退货售后、设备监控与报表分析。
+            </div>
+
+            <div class="grid cols-6" style="margin-top:18px;">
+              <div class="card kpi-card">
+                <div class="kpi-top"><div class="kpi-label">今日销售</div><div class="kpi-icon">💰</div></div>
+                <div class="kpi-value">¥86,420</div>
+                <div class="kpi-trend trend-up">较昨日 +12.8%</div>
+              </div>
+              <div class="card kpi-card">
+                <div class="kpi-top"><div class="kpi-label">RFID读取率</div><div class="kpi-icon">📡</div></div>
+                <div class="kpi-value">99.72%</div>
+                <div class="kpi-trend trend-up">今日读取 18,423 次</div>
+              </div>
+              <div class="card kpi-card">
+                <div class="kpi-top"><div class="kpi-label">库存准确率</div><div class="kpi-icon">🎯</div></div>
+                <div class="kpi-value">99.90%</div>
+                <div class="kpi-trend trend-up">最近盘点差异 0.10%</div>
+              </div>
+              <div class="card kpi-card">
+                <div class="kpi-top"><div class="kpi-label">待收货</div><div class="kpi-icon">📥</div></div>
+                <div class="kpi-value">6</div>
+                <div class="kpi-trend trend-warn">2 单今日到货</div>
+              </div>
+              <div class="card kpi-card">
+                <div class="kpi-top"><div class="kpi-label">待盘点任务</div><div class="kpi-icon">🔍</div></div>
+                <div class="kpi-value">3</div>
+                <div class="kpi-trend trend-warn">1 个门店循环盘点</div>
+              </div>
+              <div class="card kpi-card">
+                <div class="kpi-top"><div class="kpi-label">异常告警</div><div class="kpi-icon">🚨</div></div>
+                <div class="kpi-value">4</div>
+                <div class="kpi-trend trend-danger">1 起未结算出门</div>
+              </div>
+            </div>
+
+            <div class="grid cols-3" style="margin-top:18px;">
+              <div class="card span-2">
+                <div class="card-header">
+                  <div>
+                    <div class="card-title">近7日销售趋势</div>
+                    <div class="card-sub">用于观察门店销售波动、促销影响与补货节奏。</div>
+                  </div>
+                  <span class="badge badge-purple">销售趋势</span>
+                </div>
+                <div class="chart">
+                  <div class="bar-wrap"><div class="bar" style="height: 92px;"></div><div class="bar-label">09/27</div></div>
+                  <div class="bar-wrap"><div class="bar" style="height: 108px;"></div><div class="bar-label">09/28</div></div>
+                  <div class="bar-wrap"><div class="bar" style="height: 88px;"></div><div class="bar-label">09/29</div></div>
+                  <div class="bar-wrap"><div class="bar" style="height: 122px;"></div><div class="bar-label">09/30</div></div>
+                  <div class="bar-wrap"><div class="bar" style="height: 142px;"></div><div class="bar-label">10/01</div></div>
+                  <div class="bar-wrap"><div class="bar" style="height: 155px;"></div><div class="bar-label">10/02</div></div>
+                  <div class="bar-wrap"><div class="bar" style="height: 170px;"></div><div class="bar-label">10/03</div></div>
+                </div>
+              </div>
+
+              <div class="card">
+                <div class="card-header">
+                  <div>
+                    <div class="card-title">库存状态分布</div>
+                    <div class="card-sub">按服装库存状态统计。</div>
+                  </div>
+                </div>
+
+                <div class="task-item"><span>可售库存</span><span class="badge badge-green">82%</span></div>
+                <div class="progress" style="margin-bottom:14px;"><div class="progress-bar" style="width:82%;"></div></div>
+
+                <div class="task-item"><span>陈列/试衣</span><span class="badge badge-blue">7%</span></div>
+                <div class="progress" style="margin-bottom:14px;"><div class="progress-bar" style="width:7%;"></div></div>
+
+                <div class="task-item"><span>在途库存</span><span class="badge badge-purple">5%</span></div>
+                <div class="progress" style="margin-bottom:14px;"><div class="progress-bar" style="width:5%;"></div></div>
+
+                <div class="task-item"><span>次品/待处理</span><span class="badge badge-red">3%</span></div>
+                <div class="progress" style="margin-bottom:14px;"><div class="progress-bar" style="width:3%;"></div></div>
+
+                <div class="task-item"><span>冻结库存</span><span class="badge badge-gray">3%</span></div>
+                <div class="progress"><div class="progress-bar" style="width:3%;"></div></div>
+              </div>
+            </div>
+
+            <div class="grid cols-3" style="margin-top:18px;">
+              <div class="card">
+                <div class="card-header">
+                  <div>
+                    <div class="card-title">门店库存准确率</div>
+                    <div class="card-sub">最近一次 RFID 盘点结果。</div>
+                  </div>
+                </div>
+                <div class="table-wrap">
+                  <table style="min-width:520px;">
+                    <thead>
+                      <tr><th>门店</th><th>准确率</th><th>差异</th><th>状态</th></tr>
+                    </thead>
+                    <tbody>
+                      <tr><td>上海旗舰店</td><td>99.92%</td><td>-2</td><td><span class="badge badge-green">优</span></td></tr>
+                      <tr><td>北京国贸店</td><td>99.85%</td><td>+5</td><td><span class="badge badge-green">优</span></td></tr>
+                      <tr><td>杭州旗舰店</td><td>99.61%</td><td>-11</td><td><span class="badge badge-yellow">中</span></td></tr>
+                      <tr><td>华东总仓</td><td>99.96%</td><td>0</td><td><span class="badge badge-green">优</span></td></tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <div class="card">
+                <div class="card-header">
+                  <div>
+                    <div class="card-title">实时告警</div>
+                    <div class="card-sub">RFID 门禁、标签、设备异常。</div>
+                  </div>
+                </div>
+                <div id="alertList">
+                  <div class="task-item"><span>未结算出门：羊毛混纺西装 黑色 M</span><span class="badge badge-red">高</span></div>
+                  <div class="task-item"><span>标签读取失败：D7005-BRN-42</span><span class="badge badge-yellow">中</span></div>
+                  <div class="task-item"><span>手持机-02 电量低于 20%</span><span class="badge badge-yellow">中</span></div>
+                  <div class="task-item"><span>断码预警：法式白衬衫 S 码</span><span class="badge badge-blue">低</span></div>
+                </div>
+              </div>
+
+              <div class="card">
+                <div class="card-header">
+                  <div>
+                    <div class="card-title">快捷操作</div>
+                    <div class="card-sub">用于快速演示核心 RFID 场景。</div>
+                  </div>
+                </div>
+                <div class="action-list">
+                  <button class="btn btn-primary" onclick="switchPage('rfid'); simulateRfidBatch()">模拟RFID批量读取</button>
+                  <button class="btn btn-light" onclick="switchPage('sales'); addCart(); addCart();">模拟顾客拿货</button>
+                  <button class="btn btn-light" onclick="switchPage('stocktake'); openStocktakeTask()">开始门店盘点</button>
+                  <button class="btn btn-danger" onclick="simulateGateRead()">模拟门禁告警</button>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <!-- RFID控制台 -->
+          <section id="page-rfid" class="page">
+            <div class="grid cols-4">
+              <div class="card kpi-card">
+                <div class="kpi-top"><div class="kpi-label">本次会话读取</div><div class="kpi-icon">⚡</div></div>
+                <div class="kpi-value" id="rfidRealtime">0</div>
+                <div class="kpi-trend trend-up">实时读取流</div>
+              </div>
+              <div class="card kpi-card">
+                <div class="kpi-top"><div class="kpi-label">今日读取总量</div><div class="kpi-icon">📡</div></div>
+                <div class="kpi-value" id="rfidToday">18,423</div>
+                <div class="kpi-trend trend-up">含门禁/收银/盘点</div>
+              </div>
+              <div class="card kpi-card">
+                <div class="kpi-top"><div class="kpi-label">异常标签</div><div class="kpi-icon">⚠️</div></div>
+                <div class="kpi-value" id="rfidExceptions">6</div>
+                <div class="kpi-trend trend-danger">需人工复核</div>
+              </div>
+              <div class="card kpi-card">
+                <div class="kpi-top"><div class="kpi-label">门禁事件</div><div class="kpi-icon">🚪</div></div>
+                <div class="kpi-value" id="rfidGate">2</div>
+                <div class="kpi-trend trend-warn">1 起未结算</div>
+              </div>
+            </div>
+
+            <div class="toolbar" style="margin-top:18px;">
+              <div class="filters">
+                <select>
+                  <option>全部设备</option>
+                  <option>手持机-01</option>
+                  <option>手持机-02</option>
+                  <option>门禁-01</option>
+                  <option>收银台-02</option>
+                  <option>盘点车-03</option>
+                </select>
+                <select>
+                  <option>全部事件</option>
+                  <option>入库</option>
+                  <option>销售</option>
+                  <option>盘点</option>
+                  <option>调拨</option>
+                  <option>门禁</option>
+                </select>
+              </div>
+              <div class="actions">
+                <button class="btn btn-primary" onclick="simulateRfidBatch()">模拟手持机批量读取</button>
+                <button class="btn btn-light" onclick="simulateGateRead()">模拟门禁读取</button>
+                <button class="btn btn-danger" onclick="simulateException()">模拟异常标签</button>
+                <button class="btn btn-light" onclick="clearRfidStream()">清空流水</button>
+              </div>
+            </div>
+
+            <div class="grid cols-3">
+              <div class="card span-2">
+                <div class="card-header">
+                  <div>
+                    <div class="card-title">RFID 实时读取流水</div>
+                    <div class="card-sub">模拟手持机、门禁、收银台、盘点车实时上报数据。</div>
+                  </div>
+                  <span class="badge badge-purple">Live Stream</span>
+                </div>
+                <div class="table-wrap">
+                  <table id="rfidStreamTable">
+                    <thead>
+                      <tr>
+                        <th>时间</th>
+                        <th>EPC</th>
+                        <th>商品</th>
+                        <th>颜色/尺码</th>
+                        <th>设备</th>
+                        <th>事件</th>
+                        <th>状态</th>
+                      </tr>
+                    </thead>
+                    <tbody></tbody>
+                  </table>
+                </div>
+              </div>
+
+              <div style="display:flex; flex-direction:column; gap:18px; min-width:0;">
+                <div class="card">
+                  <div class="card-header">
+                    <div>
+                      <div class="card-title">标签查询</div>
+                      <div class="card-sub">输入 EPC 查询单件服装状态与轨迹。</div>
+                    </div>
+                  </div>
+                  <div class="filters" style="margin-bottom:14px;">
+                    <input id="epcSearch" placeholder="EPC 编码，可为空随机查询" style="flex:1;" />
+                    <button class="btn btn-primary" onclick="searchEpc()">查询</button>
+                  </div>
+                  <div id="epcResult">
+                    <div class="notice">尚未查询。点击“查询”后，将展示 EPC 对应商品、状态、位置与最近事件。</div>
+                  </div>
+                </div>
+
+                <div class="card">
+                  <div class="card-header">
+                    <div>
+                      <div class="card-title">异常标签</div>
+                      <div class="card-sub">需要人工复核的标签。</div>
+                    </div>
+                  </div>
+                  <div class="table-wrap">
+                    <table style="min-width:560px;">
+                      <thead>
+                        <tr><th>EPC</th><th>商品</th><th>异常类型</th><th>状态</th></tr>
+                      </thead>
+                      <tbody>
+                        <tr>
+                          <td>E280100293847561</td>
+                          <td>法式白衬衫</td>
+                          <td>读取失败</td>
+                          <td><span class="badge badge-yellow">待复核</span></td>
+                        </tr>
+                        <tr>
+                          <td>E280556781002938</td>
+                          <td>复古牛仔外套</td>
+                          <td>重复读取</td>
+                          <td><span class="badge badge-yellow">待复核</span></td>
+                        </tr>
+                        <tr>
+                          <td>E280998123045776</td>
+                          <td>针织连衣裙</td>
+                          <td>未绑定条码</td>
+                          <td><span class="badge badge-red">异常</span></td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <!-- 商品档案 -->
+          <section id="page-product" class="page">
+            <div class="toolbar">
+              <div class="filters">
+                <input placeholder="搜索款号 / SKU / 条码 / EPC" />
+                <select>
+                  <option>全部品类</option>
+                  <option>西装</option>
+                  <option>衬衫</option>
+                  <option>外套</option>
+                  <option>连衣裙</option>
+                  <option>鞋靴</option>
+                </select>
+                <select>
+                  <option>全部状态</option>
+                  <option>启用</option>
+                  <option>停用</option>
+                  <option>待审核</option>
+                </select>
+              </div>
+              <div class="actions">
+                <button class="btn btn-light" onclick="showToast('已导出商品档案')">导出</button>
+                <button class="btn btn-light" onclick="showToast('已进入 RFID 标签初始化页面')">初始化标签</button>
+                <button class="btn btn-primary" onclick="showToast('已打开新增款色码页面')">新增款色码</button>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card-header">
+                <div>
+                  <div class="card-title">商品档案</div>
+                  <div class="card-sub">服装行业以“款号 + 颜色 + 尺码”为核心，并绑定 RFID EPC 唯一码。</div>
+                </div>
+                <span class="badge badge-blue">款色码</span>
+              </div>
+
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>SKU</th>
+                      <th>款号</th>
+                      <th>品名</th>
+                      <th>颜色</th>
+                      <th>尺码</th>
+                      <th>条码</th>
+                      <th>EPC示例</th>
+                      <th>吊牌价</th>
+                      <th>库存</th>
+                      <th>状态</th>
+                      <th>操作</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td>A2001-BLK-M</td>
+                      <td>A2001</td>
+                      <td>羊毛混纺西装</td>
+                      <td>黑色</td>
+                      <td>M</td>
+                      <td>6901001000011</td>
+                      <td>E280100000001</td>
+                      <td>¥899</td>
+                      <td>32</td>
+                      <td><span class="badge badge-green">启用</span></td>
+                      <td>
+                        <button class="btn btn-light btn-sm" onclick="openTrace('A2001-BLK-M')">追溯</button>
+                        <button class="btn btn-light btn-sm" onclick="showToast('已发送打印吊牌任务')">打印</button>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td>A1082-WHT-S</td>
+                      <td>A1082</td>
+                      <td>法式白衬衫</td>
+                      <td>白色</td>
+                      <td>S</td>
+                      <td>6901001000028</td>
+                      <td>E280100000002</td>
+                      <td>¥399</td>
+                      <td>18</td>
+                      <td><span class="badge badge-green">启用</span></td>
+                      <td>
+                        <button class="btn btn-light btn-sm" onclick="openTrace('A1082-WHT-S')">追溯</button>
+                        <button class="btn btn-light btn-sm" onclick="showToast('已发送打印吊牌任务')">打印</button>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td>B3021-NVY-XL</td>
+                      <td>B3021</td>
+                      <td>复古牛仔外套</td>
+                      <td>藏青</td>
+                      <td>XL</td>
+                      <td>6901001000035</td>
+                      <td>E280100000003</td>
+                      <td>¥699</td>
+                      <td>26</td>
+                      <td><span class="badge badge-green">启用</span></td>
+                      <td>
+                        <button class="btn btn-light btn-sm" onclick="openTrace('B3021-NVY-XL')">追溯</button>
+                        <button class="btn btn-light btn-sm" onclick="showToast('已发送打印吊牌任务')">打印</button>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td>C5010-GRY-M</td>
+                      <td>C5010</td>
+                      <td>针织连衣裙</td>
+                      <td>灰色</td>
+                      <td>M</td>
+                      <td>6901001000042</td>
+                      <td>E280100000004</td>
+                      <td>¥599</td>
+                      <td>12</td>
+                      <td><span class="badge badge-yellow">待审核</span></td>
+                      <td>
+                        <button class="btn btn-light btn-sm" onclick="openTrace('C5010-GRY-M')">追溯</button>
+                        <button class="btn btn-light btn-sm" onclick="showToast('已发送打印吊牌任务')">打印</button>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </section>
+
+          <!-- 采购入库 -->
+          <section id="page-inbound" class="page">
+            <div class="toolbar">
+              <div class="filters">
+                <input placeholder="搜索采购单 / 供应商" />
+                <select>
+                  <option>全部状态</option>
+                  <option>待收货</option>
+                  <option>收货中</option>
+                  <option>已完成</option>
+                  <option>差异待处理</option>
+                </select>
+              </div>
+              <div class="actions">
+                <button class="btn btn-light" onclick="showToast('已导出采购入库单')">导出</button>
+                <button class="btn btn-primary" onclick="openInboundReceipt()">批量RFID收货</button>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card-header">
+                <div>
+                  <div class="card-title">采购入库单</div>
+                  <div class="card-sub">支持采购订单关联、批量 RFID 收货、差异比对、质检与上架。</div>
+                </div>
+                <span class="badge badge-blue">Inbound</span>
+              </div>
+
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>单号</th>
+                      <th>供应商</th>
+                      <th>类型</th>
+                      <th>目标仓/店</th>
+                      <th>款色码/件数</th>
+                      <th>RFID已读</th>
+                      <th>差异</th>
+                      <th>状态</th>
+                      <th>操作</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td>PO-20261002-01</td>
+                      <td>杭州衣尚供应链</td>
+                      <td>采购入库</td>
+                      <td>华东总仓</td>
+                      <td>18 / 1,200</td>
+                      <td>0 / 1,200</td>
+                      <td>0</td>
+                      <td><span class="badge badge-yellow">待收货</span></td>
+                      <td>
+                        <button class="btn btn-primary btn-sm" onclick="openInboundReceipt()">收货</button>
+                        <button class="btn btn-light btn-sm" onclick="showToast('已查看采购单详情')">详情</button>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td>PO-20261001-05</td>
+                      <td>广州优选服饰</td>
+                      <td>采购入库</td>
+                      <td>华南区域仓</td>
+                      <td>12 / 860</td>
+                      <td>860 / 860</td>
+                      <td>0</td>
+                      <td><span class="badge badge-green">已完成</span></td>
+                      <td>
+                        <button class="btn btn-light btn-sm" onclick="showToast('已查看入库明细')">明细</button>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td>PO-20260930-02</td>
+                      <td>上海锦绣制衣</td>
+                      <td>采购入库</td>
+                      <td>上海旗舰店</td>
+                      <td>8 / 420</td>
+                      <td>416 / 420</td>
+                      <td>-4</td>
+                      <td><span class="badge badge-red">差异待处理</span></td>
+                      <td>
+                        <button class="btn btn-danger btn-sm" onclick="showToast('已打开差异处理页面')">处理差异</button>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </section>
+
+          <!-- 销售出库 -->
+          <section id="page-sales" class="page">
+            <div class="grid cols-3">
+              <div class="card span-2">
+                <div class="card-header">
+                  <div>
+                    <div class="card-title">门店收银 / 销售出库</div>
+                    <div class="card-sub">RFID 收银台批量识别，支持未结算商品出门告警。</div>
+                  </div>
+                  <span class="badge badge-purple">POS + RFID</span>
+                </div>
+
+                <div class="actions" style="margin-bottom:14px;">
+                  <button class="btn btn-light" onclick="addCart()">添加顾客拿货</button>
+                  <button class="btn btn-primary" onclick="scanCart()">RFID收银扫描</button>
+                  <button class="btn btn-primary" onclick="settleCart()">结算</button>
+                  <button class="btn btn-danger" onclick="triggerGateAlarm()">模拟门禁告警</button>
+                </div>
+
+                <div class="table-wrap">
+                  <table id="salesCartTable">
+                    <thead>
+                      <tr>
+                        <th>EPC</th>
+                        <th>商品</th>
+                        <th>颜色/尺码</th>
+                        <th>吊牌价</th>
+                        <th>折扣</th>
+                        <th>金额</th>
+                        <th>状态</th>
+                      </tr>
+                    </thead>
+                    <tbody></tbody>
+                  </table>
+                </div>
+              </div>
+
+              <div style="display:flex; flex-direction:column; gap:18px; min-width:0;">
+                <div class="card">
+                  <div class="card-header">
+                    <div>
+                      <div class="card-title">当前销售信息</div>
+                      <div class="card-sub">模拟门店收银上下文。</div>
+                    </div>
+                  </div>
+                  <div class="info-list">
+                    <div class="info-row"><span>门店</span><strong>上海旗舰店</strong></div>
+                    <div class="info-row"><span>收银员</span><strong>张三</strong></div>
+                    <div class="info-row"><span>会员</span><strong>VIP-88231</strong></div>
+                    <div class="info-row"><span>未结算件数</span><strong id="saleCount">0</strong></div>
+                    <div class="info-row"><span>应收金额</span><strong id="saleAmount">¥0</strong></div>
+                  </div>
+                  <div class="action-list" style="margin-top:16px;">
+                    <button class="btn btn-primary" onclick="settleCart()">立即结算</button>
+                    <button class="btn btn-light" onclick="triggerGateAlarm()">模拟未结算出门</button>
+                  </div>
+                </div>
+
+                <div class="card">
+                  <div class="card-header">
+                    <div>
+                      <div class="card-title">门禁事件</div>
+                      <div class="card-sub">RFID 门禁实时监控。</div>
+                    </div>
+                  </div>
+                  <div class="table-wrap">
+                    <table id="gateEventTable" style="min-width:640px;">
+                      <thead>
+                        <tr>
+                          <th>时间</th>
+                          <th>EPC</th>
+                          <th>商品</th>
+                          <th>事件</th>
+                          <th>状态</th>
+                          <th>操作</th>
+                        </tr>
+                      </thead>
+                      <tbody></tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <!-- 库存管理 -->
+          <section id="page-inventory" class="page">
+            <div class="toolbar">
+              <div class="filters">
+                <input placeholder="搜索 SKU / 商品 / EPC" />
+                <select>
+                  <option>全部门店/仓库</option>
+                  <option>上海旗舰店</option>
+                  <option>北京国贸店</option>
+                  <option>华东总仓</option>
+                </select>
+                <select>
+                  <option>全部状态</option>
+                  <option>可售</option>
+                  <option>陈列</option>
+                  <option>在途</option>
+                  <option>次品</option>
+                  <option>冻结</option>
+                </select>
+              </div>
+              <div class="actions">
+                <button class="btn btn-light" onclick="showToast('已导出库存报表')">导出</button>
+                <button class="btn btn-light" onclick="showToast('已打开库存调整页面')">库存调整</button>
+                <button class="btn btn-primary" onclick="showToast('已生成缺货补货建议')">补货建议</button>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card-header">
+                <div>
+                  <div class="card-title">库存列表</div>
+                  <div class="card-sub">按款色码汇总门店/仓库库存，并支持单件 EPC 追溯。</div>
+                </div>
+                <span class="badge badge-green">Inventory</span>
+              </div>
+
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>SKU</th>
+                      <th>商品</th>
+                      <th>颜色/尺码</th>
+                      <th>位置</th>
+                      <th>可用</th>
+                      <th>陈列</th>
+                      <th>在途</th>
+                      <th>次品</th>
+                      <th>库存金额</th>
+                      <th>状态</th>
+                      <th>操作</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td>A2001-BLK-M</td>
+                      <td>羊毛混纺西装</td>
+                      <td>黑色 / M</td>
+                      <td>上海旗舰店-女装区</td>
+                      <td>18</td>
+                      <td>6</td>
+                      <td>8</td>
+                      <td>0</td>
+                      <td>¥28,768</td>
+                      <td><span class="badge badge-green">可售</span></td>
+                      <td>
+                        <button class="btn btn-light btn-sm" onclick="openTrace('A2001-BLK-M')">追溯</button>
+                        <button class="btn btn-light btn-sm" onclick="showToast('已打开库存调整页面')">调整</button>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td>A1082-WHT-S</td>
+                      <td>法式白衬衫</td>
+                      <td>白色 / S</td>
+                      <td>上海旗舰店-后仓</td>
+                      <td>6</td>
+                      <td>3</td>
+                      <td>0</td>
+                      <td>1</td>
+                      <td>¥3,990</td>
+                      <td><span class="badge badge-yellow">低库存</span></td>
+                      <td>
+                        <button class="btn btn-light btn-sm" onclick="openTrace('A1082-WHT-S')">追溯</button>
+                        <button class="btn btn-light btn-sm" onclick="showToast('已触发补货建议')">补货</button>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td>B3021-NVY-XL</td>
+                      <td>复古牛仔外套</td>
+                      <td>藏青 / XL</td>
+                      <td>华东总仓-A区</td>
+                      <td>52</td>
+                      <td>0</td>
+                      <td>12</td>
+                      <td>2</td>
+                      <td>¥44,736</td>
+                      <td><span class="badge badge-green">可售</span></td>
+                      <td>
+                        <button class="btn btn-light btn-sm" onclick="openTrace('B3021-NVY-XL')">追溯</button>
+                        <button class="btn btn-light btn-sm" onclick="showToast('已打开库存调整页面')">调整</button>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td>C5010-GRY-M</td>
+                      <td>针织连衣裙</td>
+                      <td>灰色 / M</td>
+                      <td>北京国贸店-试衣间</td>
+                      <td>3</td>
+                      <td>2</td>
+                      <td>0</td>
+                      <td>1</td>
+                      <td>¥3,594</td>
+                      <td><span class="badge badge-red">次品待处理</span></td>
+                      <td>
+                        <button class="btn btn-light btn-sm" onclick="openTrace('C5010-GRY-M')">追溯</button>
+                        <button class="btn btn-danger btn-sm" onclick="showToast('已转入次品区')">转次品</button>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </section>
+
+          <!-- 盘点作业 -->
+          <section id="page-stocktake" class="page">
+            <div class="grid cols-4">
+              <div class="card kpi-card">
+                <div class="kpi-top"><div class="kpi-label">当前任务</div><div class="kpi-icon">🔍</div></div>
+                <div class="kpi-value">ST-1003-01</div>
+                <div class="kpi-trend trend-warn">上海旗舰店-女装区</div>
+              </div>
+              <div class="card kpi-card">
+                <div class="kpi-top"><div class="kpi-label">系统件数</div><div class="kpi-icon">🧾</div></div>
+                <div class="kpi-value">320</div>
+                <div class="kpi-trend trend-up">按款色码汇总</div>
+              </div>
+              <div class="card kpi-card">
+                <div class="kpi-top"><div class="kpi-label">已读件数</div><div class="kpi-icon">📡</div></div>
+                <div class="kpi-value">286</div>
+                <div class="kpi-trend trend-up">手持机-01</div>
+              </div>
+              <div class="card kpi-card">
+                <div class="kpi-top"><div class="kpi-label">差异</div><div class="kpi-icon">⚠️</div></div>
+                <div class="kpi-value">+2</div>
+                <div class="kpi-trend trend-danger">需复盘确认</div>
+              </div>
+            </div>
+
+            <div class="toolbar" style="margin-top:18px;">
+              <div class="filters">
+                <input placeholder="搜索盘点单" />
+                <select>
+                  <option>全部状态</option>
+                  <option>进行中</option>
+                  <option>待审核</option>
+                  <option>已完成</option>
+                </select>
+              </div>
+              <div class="actions">
+                <button class="btn btn-light" onclick="showToast('已导入盘点设备数据')">导入设备数据</button>
+                <button class="btn btn-light" onclick="showToast('已打开差异审核页面')">差异审核</button>
+                <button class="btn btn-primary" onclick="openStocktakeTask()">开始盘点</button>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card-header">
+                <div>
+                  <div class="card-title">盘点单列表</div>
+                  <div class="card-sub">支持全盘、循环盘点、区域盘点、品类盘点。</div>
+                </div>
+                <span class="badge badge-blue">Stocktake</span>
+              </div>
+
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>盘点单号</th>
+                      <th>范围</th>
+                      <th>设备</th>
+                      <th>系统件数</th>
+                      <th>已读</th>
+                      <th>差异</th>
+                      <th>准确率</th>
+                      <th>状态</th>
+                      <th>操作</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td>ST-20261003-01</td>
+                      <td>上海旗舰店-女装区</td>
+                      <td>手持机-01</td>
+                      <td>320</td>
+                      <td>286</td>
+                      <td>+2</td>
+                      <td>99.38%</td>
+                      <td><span class="badge badge-blue">进行中</span></td>
+                      <td>
+                        <button class="btn btn-primary btn-sm" onclick="openStocktakeTask()">继续盘点</button>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td>ST-20261002-02</td>
+                      <td>华东总仓-A区</td>
+                      <td>盘点车-03</td>
+                      <td>5,600</td>
+                      <td>5,600</td>
+                      <td>-5</td>
+                      <td>99.91%</td>
+                      <td><span class="badge badge-yellow">待审核</span></td>
+                      <td>
+                        <button class="btn btn-light btn-sm" onclick="showToast('已打开差异审核页面')">审核</button>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td>ST-20261001-04</td>
+                      <td>北京国贸店-全店</td>
+                      <td>手持机-02</td>
+                      <td>2,180</td>
+                      <td>2,180</td>
+                      <td>0</td>
+                      <td>100.00%</td>
+                      <td><span class="badge badge-green">已完成</span></td>
+                      <td>
+                        <button class="btn btn-light btn-sm" onclick="showToast('已查看盘点报告')">报告</button>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </section>
+
+          <!-- 调拨补货 -->
+          <section id="page-transfer" class="page">
+            <div class="toolbar">
+              <div class="filters">
+                <input placeholder="搜索调拨单" />
+                <select>
+                  <option>全部类型</option>
+                  <option>仓到店</option>
+                  <option>店到店</option>
+                  <option>店退仓</option>
+                  <option>仓间调拨</option>
+                </select>
+              </div>
+              <div class="actions">
+                <button class="btn btn-light" onclick="showToast('已生成智能补货建议')">智能补货</button>
+                <button class="btn btn-light" onclick="showToast('已打开装箱校验页面')">装箱校验</button>
+                <button class="btn btn-primary" onclick="showToast('已创建调拨单')">新建调拨</button>
+              </div>
+            </div>
+
+            <div class="grid cols-3">
+              <div class="card span-2">
+                <div class="card-header">
+                  <div>
+                    <div class="card-title">调拨单列表</div>
+                    <div class="card-sub">支持 RFID 装箱校验、在途库存跟踪、收货差异处理。</div>
+                  </div>
+                  <span class="badge badge-purple">Transfer</span>
+                </div>
+
+                <div class="table-wrap">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>调拨单号</th>
+                        <th>类型</th>
+                        <th>从</th>
+                        <th>到</th>
+                        <th>件数</th>
+                        <th>RFID校验</th>
+                        <th>状态</th>
+                        <th>操作</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <td>TR-20261003-01</td>
+                        <td>仓到店</td>
+                        <td>华东总仓</td>
+                        <td>上海旗舰店</td>
+                        <td>320</td>
+                        <td>320 / 320</td>
+                        <td><span class="badge badge-blue">在途</span></td>
+                        <td>
+                          <button class="btn btn-light btn-sm" onclick="showToast('已查看在途库存')">跟踪</button>
+                          <button class="btn btn-primary btn-sm" onclick="showToast('已打开收货确认页面')">收货</button>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td>TR-20261002-08</td>
+                        <td>店到店</td>
+                        <td>杭州旗舰店</td>
+                        <td>北京国贸店</td>
+                        <td>86</td>
+                        <td>86 / 86</td>
+                        <td><span class="badge badge-green">已完成</span></td>
+                        <td>
+                          <button class="btn btn-light btn-sm" onclick="showToast('已查看调拨详情')">详情</button>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td>TR-20261001-03</td>
+                        <td>店退仓</td>
+                        <td>上海旗舰店</td>
+                        <td>华东总仓</td>
+                        <td>48</td>
+                        <td>47 / 48</td>
+                        <td><span class="badge badge-red">差异待处理</span></td>
+                        <td>
+                          <button class="btn btn-danger btn-sm" onclick="showToast('已打开差异处理页面')">差异</button>
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <div class="card">
+                <div class="card-header">
+                  <div>
+                    <div class="card-title">智能补货建议</div>
+                    <div class="card-sub">基于销售、安全库存、断码与陈列标准。</div>
+                  </div>
+                </div>
+                <div class="table-wrap">
+                  <table style="min-width:620px;">
+                    <thead>
+                      <tr>
+                        <th>门店</th>
+                        <th>SKU</th>
+                        <th>当前</th>
+                        <th>安全</th>
+                        <th>7日销量</th>
+                        <th>建议</th>
+                        <th>操作</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <td>上海旗舰店</td>
+                        <td>A1082-WHT-S</td>
+                        <td>6</td>
+                        <td>12</td>
+                        <td>18</td>
+                        <td>20</td>
+                        <td><button class="btn btn-primary btn-sm" onclick="showToast('已生成补货调拨单')">生成</button></td>
+                      </tr>
+                      <tr>
+                        <td>北京国贸店</td>
+                        <td>A2001-BLK-L</td>
+                        <td>4</td>
+                        <td>10</td>
+                        <td>14</td>
+                        <td>16</td>
+                        <td><button class="btn btn-primary btn-sm" onclick="showToast('已生成补货调拨单')">生成</button></td>
+                      </tr>
+                      <tr>
+                        <td>杭州旗舰店</td>
+                        <td>C5010-GRY-M</td>
+                        <td>3</td>
+                        <td>8</td>
+                        <td>9</td>
+                        <td>12</td>
+                        <td><button class="btn btn-primary btn-sm" onclick="showToast('已生成补货调拨单')">生成</button></td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <!-- 退货售后 -->
+          <section id="page-returns" class="page">
+            <div class="toolbar">
+              <div class="filters">
+                <input placeholder="搜索退货单 / 订单号" />
+                <select>
+                  <option>全部来源</option>
+                  <option>顾客退货</option>
+                  <option>门店退仓</option>
+                  <option>退供应商</option>
+                </select>
+              </div>
+              <div class="actions">
+                <button class="btn btn-light" onclick="showToast('已导出退货单')">导出</button>
+                <button class="btn btn-primary" onclick="showToast('已创建退货单')">创建退货</button>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card-header">
+                <div>
+                  <div class="card-title">退货售后</div>
+                  <div class="card-sub">通过 RFID 识别商品真伪、追溯来源，并完成质检分级。</div>
+                </div>
+                <span class="badge badge-red">Returns</span>
+              </div>
+
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>退货单号</th>
+                      <th>来源</th>
+                      <th>目标</th>
+                      <th>SKU</th>
+                      <th>原因</th>
+                      <th>RFID验证</th>
+                      <th>质检</th>
+                      <th>状态</th>
+                      <th>操作</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td>RT-20261003-01</td>
+                      <td>顾客退货</td>
+                      <td>上海旗舰店</td>
+                      <td>A2001-BLK-M</td>
+                      <td>尺码不合适</td>
+                      <td><span class="badge badge-green">通过</span></td>
+                      <td>-</td>
+                      <td><span class="badge badge-yellow">待质检</span></td>
+                      <td>
+                        <button class="btn btn-primary btn-sm" onclick="openReturnQuality()">质检</button>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td>RT-20261002-06</td>
+                      <td>顾客退货</td>
+                      <td>北京国贸店</td>
+                      <td>A1082-WHT-S</td>
+                      <td>污渍</td>
+                      <td><span class="badge badge-green">通过</span></td>
+                      <td>次品</td>
+                      <td><span class="badge badge-red">待清洗</span></td>
+                      <td>
+                        <button class="btn btn-light btn-sm" onclick="showToast('已转入待洗区')">转待洗</button>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td>RT-20261001-02</td>
+                      <td>门店退仓</td>
+                      <td>华东总仓</td>
+                      <td>B3021-NVY-XL</td>
+                      <td>滞销退仓</td>
+                      <td><span class="badge badge-green">通过</span></td>
+                      <td>良品</td>
+                      <td><span class="badge badge-green">已上架</span></td>
+                      <td>
+                        <button class="btn btn-light btn-sm" onclick="showToast('已查看退货详情')">详情</button>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </section>
+
+          <!-- 报表分析 -->
+          <section id="page-reports" class="page">
+            <div class="grid cols-4">
+              <div class="card kpi-card">
+                <div class="kpi-top"><div class="kpi-label">售罄率</div><div class="kpi-icon">🧾</div></div>
+                <div class="kpi-value">68.4%</div>
+                <div class="kpi-trend trend-up">秋季新品</div>
+              </div>
+              <div class="card kpi-card">
+                <div class="kpi-top"><div class="kpi-label">库存周转</div><div class="kpi-icon">🔄</div></div>
+                <div class="kpi-value">42天</div>
+                <div class="kpi-trend trend-up">较上月 -3 天</div>
+              </div>
+              <div class="card kpi-card">
+                <div class="kpi-top"><div class="kpi-label">断码率</div><div class="kpi-icon">📏</div></div>
+                <div class="kpi-value">6.2%</div>
+                <div class="kpi-trend trend-warn">需关注畅销码</div>
+              </div>
+              <div class="card kpi-card">
+                <div class="kpi-top"><div class="kpi-label">损耗率</div><div class="kpi-icon">📉</div></div>
+                <div class="kpi-value">0.18%</div>
+                <div class="kpi-trend trend-up">低于目标 0.30%</div>
+              </div>
+            </div>
+
+            <div class="card" style="margin-top:18px;">
+              <div class="card-header">
+                <div>
+                  <div class="card-title">报表中心</div>
+                  <div class="card-sub">覆盖进销存、RFID 运营、门店绩效与财务核算。</div>
+                </div>
+                <span class="badge badge-blue">Reports</span>
+              </div>
+
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>报表名称</th>
+                      <th>维度</th>
+                      <th>更新时间</th>
+                      <th>说明</th>
+                      <th>操作</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td>库存准确率报表</td>
+                      <td>门店 / 仓库 / 品类</td>
+                      <td>2026-10-03 08:00</td>
+                      <td>基于 RFID 盘点差异计算</td>
+                      <td><button class="btn btn-light btn-sm" onclick="showToast('报表已生成')">查看</button></td>
+                    </tr>
+                    <tr>
+                      <td>款色码销售分析</td>
+                      <td>款 / 颜色 / 尺码</td>
+                      <td>2026-10-03 08:00</td>
+                      <td>销售数量、金额、折扣、售罄率</td>
+                      <td><button class="btn btn-light btn-sm" onclick="showToast('报表已生成')">查看</button></td>
+                    </tr>
+                    <tr>
+                      <td>RFID读取率报表</td>
+                      <td>设备 / 门店 / 事件</td>
+                      <td>2026-10-03 08:00</td>
+                      <td>读取成功率、异常率、设备负载</td>
+                      <td><button class="btn btn-light btn-sm" onclick="showToast('报表已生成')">查看</button></td>
+                    </tr>
+                    <tr>
+                      <td>损耗与盘盈亏报表</td>
+                      <td>门店 / 仓库 / 原因</td>
+                      <td>2026-10-03 08:00</td>
+                      <td>盘盈、盘亏、报废、丢失</td>
+                      <td><button class="btn btn-light btn-sm" onclick="showToast('报表已生成')">查看</button></td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </section>
+
+          <!-- 设备集成 -->
+          <section id="page-devices" class="page">
+            <div class="grid cols-3">
+              <div class="card span-2">
+                <div class="card-header">
+                  <div>
+                    <div class="card-title">RFID 设备监控</div>
+                    <div class="card-sub">手持机、门禁、收银台读写器、盘点车、标签打印机。</div>
+                  </div>
+                  <span class="badge badge-purple">Devices</span>
+                </div>
+
+                <div class="table-wrap">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>设备编号</th>
+                        <th>类型</th>
+                        <th>位置</th>
+                        <th>状态</th>
+                        <th>电量</th>
+                        <th>最近心跳</th>
+                        <th>今日读取</th>
+                        <th>操作</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <td>HD-01</td>
+                        <td>手持机</td>
+                        <td>上海旗舰店</td>
+                        <td><span class="badge badge-green">在线</span></td>
+                        <td>82%</td>
+                        <td>10:23:18</td>
+                        <td>4,218</td>
+                        <td><button class="btn btn-light btn-sm" onclick="showToast('已查看设备日志')">日志</button></td>
+                      </tr>
+                      <tr>
+                        <td>HD-02</td>
+                        <td>手持机</td>
+                        <td>北京国贸店</td>
+                        <td><span class="badge badge-yellow">低电量</span></td>
+                        <td>18%</td>
+                        <td>10:21:45</td>
+                        <td>3,862</td>
+                        <td><button class="btn btn-light btn-sm" onclick="showToast('已提醒充电')">提醒</button></td>
+                      </tr>
+                      <tr>
+                        <td>GT-01</td>
+                        <td>门禁</td>
+                        <td>上海旗舰店正门</td>
+                        <td><span class="badge badge-green">在线</span></td>
+                        <td>-</td>
+                        <td>10:23:51</td>
+                        <td>6,204</td>
+                        <td><button class="btn btn-light btn-sm" onclick="showToast('已查看门禁日志')">日志</button></td>
+                      </tr>
+                      <tr>
+                        <td>POS-02</td>
+                        <td>收银台读写器</td>
+                        <td>上海旗舰店收银台</td>
+                        <td><span class="badge badge-green">在线</span></td>
+                        <td>-</td>
+                        <td>10:23:37</td>
+                        <td>2,410</td>
+                        <td><button class="btn btn-light btn-sm" onclick="showToast('已查看收银日志')">日志</button></td>
+                      </tr>
+                      <tr>
+                        <td>PR-01</td>
+                        <td>标签打印机</td>
+                        <td>华东总仓</td>
+                        <td><span class="badge badge-red">离线</span></td>
+                        <td>-</td>
+                        <td>09:12:03</td>
+                        <td>0</td>
+                        <td><button class="btn btn-danger btn-sm" onclick="showToast('已通知运维')">运维</button></td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <div class="card">
+                <div class="card-header">
+                  <div>
+                    <div class="card-title">系统集成</div>
+                    <div class="card-sub">与业务系统打通。</div>
+                  </div>
+                </div>
+                <div class="task-item"><span>ERP 系统</span><span class="badge badge-green">已接入</span></div>
+                <div class="task-item"><span>POS 收银系统</span><span class="badge badge-green">已接入</span></div>
+                <div class="task-item"><span>会员中台</span><span class="badge badge-green">已接入</span></div>
+                <div class="task-item"><span>小程序商城</span><span class="badge badge-yellow">配置中</span></div>
+                <div class="task-item"><span>财务系统</span><span class="badge badge-gray">未启用</span></div>
+                <div class="task-item"><span>物流快递平台</span><span class="badge badge-green">已接入</span></div>
+              </div>
+            </div>
+          </section>
+
+          <!-- 系统设置 -->
+          <section id="page-settings" class="page">
+            <div class="grid cols-3">
+              <div class="card">
+                <div class="card-header">
+                  <div>
+                    <div class="card-title">RFID 编码规则</div>
+                    <div class="card-sub">EPC 唯一码生成规则。</div>
+                  </div>
+                </div>
+                <div class="info-list">
+                  <div class="info-row"><span>公司前缀</span><strong>860012</strong></div>
+                  <div class="info-row"><span>商品标识</span><strong>款色码映射</strong></div>
+                  <div class="info-row"><span>序列号</span><strong>12位数字</strong></div>
+                  <div class="info-row"><span>示例 EPC</span><strong>E280100293847561</strong></div>
+                  <div class="info-row"><span>标签状态</span><strong>启用 / 冻结 / 作废</strong></div>
+                </div>
+              </div>
+
+              <div class="card">
+                <div class="card-header">
+                  <div>
+                    <div class="card-title">审批流配置</div>
+                    <div class="card-sub">库存调整、报废、调拨、退货审批。</div>
+                  </div>
+                </div>
+                <div class="task-item"><span>库存调整审批</span><span class="badge badge-green">启用</span></div>
+                <div class="task-item"><span>报废审批</span><span class="badge badge-green">启用</span></div>
+                <div class="task-item"><span>跨仓调拨审批</span><span class="badge badge-green">启用</span></div>
+                <div class="task-item"><span>退货质检免审金额</span><span class="badge badge-blue">¥500 以下</span></div>
+                <div class="task-item"><span>门禁异常复核</span><span class="badge badge-green">启用</span></div>
+              </div>
+
+              <div class="card">
+                <div class="card-header">
+                  <div>
+                    <div class="card-title">告警阈值</div>
+                    <div class="card-sub">用于自动触发预警。</div>
+                  </div>
+                </div>
+                <div class="info-list">
+                  <div class="info-row"><span>库存准确率低于</span><strong>99.50%</strong></div>
+                  <div class="info-row"><span>RFID读取率低于</span><strong>99.00%</strong></div>
+                  <div class="info-row"><span>断码率高于</span><strong>8.00%</strong></div>
+                  <div class="info-row"><span>库龄超过</span><strong>120 天</strong></div>
+                  <div class="info-row"><span>未结算出门</span><strong>实时告警</strong></div>
+                </div>
+              </div>
+            </div>
+          </section>
+        </main>
+      </div>
+    </div>
+  </div>
+
+  <!-- 弹窗 -->
+  <div id="modalOverlay" class="modal-overlay hidden" onclick="if(event.target === this) closeModal()">
+    <div class="modal">
+      <div class="modal-header">
+        <div>
+          <div class="modal-title" id="modalTitle">弹窗标题</div>
+          <div class="modal-sub" id="modalSub">弹窗说明</div>
+        </div>
+        <button class="btn btn-light" onclick="closeModal()">✕</button>
+      </div>
+      <div class="modal-body" id="modalBody"></div>
+      <div class="modal-footer" id="modalFooter"></div>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div id="toast" class="toast"></div>
+
+  <script>
+    const pageNames = {
+      dashboard: '仪表盘',
+      rfid: 'RFID控制台',
+      product: '商品档案',
+      inbound: '采购入库',
+      sales: '销售出库',
+      inventory: '库存管理',
+      stocktake: '盘点作业',
+      transfer: '调拨补货',
+      returns: '退货售后',
+      reports: '报表分析',
+      devices: '设备集成',
+      settings: '系统设置'
+    };
+
+    let toastTimer = null;
+
+    const productPool = [
+      { sku: 'A2001-BLK-M', name: '羊毛混纺西装', color: '黑色', size: 'M', price: 899 },
+      { sku: 'A2001-BLK-L', name: '羊毛混纺西装', color: '黑色', size: 'L', price: 899 },
+      { sku: 'A1082-WHT-S', name: '法式白衬衫', color: '白色', size: 'S', price: 399 },
+      { sku: 'B3021-NVY-XL', name: '复古牛仔外套', color: '藏青', size: 'XL', price: 699 },
+      { sku: 'C5010-GRY-M', name: '针织连衣裙', color: '灰色', size: 'M', price: 599 },
+      { sku: 'D7005-BRN-42', name: '真皮切尔西靴', color: '棕色', size: '42', price: 1299 }
+    ];
+
+    const rfidSession = {
+      realtime: 0,
+      today: 18423,
+      exceptions: 6,
+      gate: 2
+    };
+
+    let cart = [];
+    let inboundRead = 0;
+    const inboundTotal = 1200;
+    let stocktakeRead = 0;
+    const stocktakeSystem = 320;
+
+    function login() {
+      document.getElementById('loginPage').classList.add('hidden');
+      document.getElementById('app').classList.remove('hidden');
+      showToast('已进入演示系统，当前门店/仓库：' + document.getElementById('loginStore').value);
+    }
+
+    function switchPage(page) {
+      document.querySelectorAll('.page').forEach((el) => el.classList.remove('active'));
+      const target = document.getElementById('page-' + page);
+      if (target) target.classList.add('active');
+
+      document.querySelectorAll('.nav-item').forEach((btn) => {
+        btn.classList.toggle('active', btn.dataset.page === page);
+      });
+
+      document.getElementById('topPageTitle').textContent = pageNames[page] || page;
+      document.getElementById('breadcrumb').textContent = '首页 / ' + (pageNames[page] || page);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function changeStore(value) {
+      showToast('已切换门店/仓库：' + value);
+    }
+
+    function showToast(message) {
+      const toast = document.getElementById('toast');
+      toast.textContent = message;
+      toast.classList.add('show');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => toast.classList.remove('show'), 2600);
+    }
+
+    function showModal({ title, sub, body, footer }) {
+      document.getElementById('modalTitle').textContent = title;
+      document.getElementById('modalSub').textContent = sub || '';
+      document.getElementById('modalBody').innerHTML = body;
+      document.getElementById('modalFooter').innerHTML = footer;
+      document.getElementById('modalOverlay').classList.remove('hidden');
+    }
+
+    function closeModal() {
+      document.getElementById('modalOverlay').classList.add('hidden');
+    }
+
+    function fmt(n) {
+      return Number(n).toLocaleString('zh-CN');
+    }
+
+    function nowTime() {
+      return new Date().toLocaleTimeString('zh-CN', { hour12: false });
+    }
+
+    function randomProduct() {
+      return productPool[Math.floor(Math.random() * productPool.length)];
+    }
+
+    function randomEpc() {
+      return 'E280' + Math.floor(100000000000 + Math.random() * 900000000000);
+    }
+
+    function updateRfidKpis() {
+      document.getElementById('rfidRealtime').textContent = fmt(rfidSession.realtime);
+      document.getElementById('rfidToday').textContent = fmt(rfidSession.today);
+      document.getElementById('rfidExceptions').textContent = fmt(rfidSession.exceptions);
+      document.getElementById('rfidGate').textContent = fmt(rfidSession.gate);
+    }
+
+    function addRfidStream({ event, status }) {
+      const tbody = document.querySelector('#rfidStreamTable tbody');
+      if (!tbody) return;
+
+      const p = randomProduct();
+      const epc = randomEpc();
+      const devices = ['手持机-01', '手持机-02', '门禁-01', '收银台-02', '盘点车-03'];
+      const device = devices[Math.floor(Math.random() * devices.length)];
+
+      const row = tbody.insertRow(0);
+      row.innerHTML = `
+        <td>${nowTime()}</td>
+        <td>${epc}</td>
+        <td>${p.name}</td>
+        <td>${p.color} / ${p.size}</td>
+        <td>${device}</td>
+        <td>${event}</td>
+        <td><span class="badge ${status === '正常' ? 'badge-green' : 'badge-red'}">${status}</span></td>
+      `;
+
+      rfidSession.realtime += 1;
+      rfidSession.today += 1;
+      if (status === '异常') rfidSession.exceptions += 1;
+      if (event === '门禁') rfidSession.gate += 1;
+      updateRfidKpis();
+
+      if (tbody.rows.length > 30) tbody.deleteRow(-1);
+    }
+
+    function simulateRfidBatch() {
+      const events = ['入库', '销售', '盘点', '调拨'];
+      for (let i = 0; i < 8; i++) {
+        const event = events[Math.floor(Math.random() * events.length)];
+        const status = Math.random() < 0.08 ? '异常' : '正常';
+        addRfidStream({ event, status });
+      }
+      showToast('已完成 RFID 批量读取，本次模拟读取 8 件');
+    }
+
+    function simulateGateRead() {
+      const abnormal = Math.random() < 0.45;
+      addRfidStream({ event: '门禁', status: abnormal ? '异常' : '正常' });
+      if (abnormal) {
+        addAlert('未结算商品尝试出门，门禁已告警');
+        showToast('门禁告警：发现未结算商品');
+      } else {
+        showToast('门禁读取正常');
+      }
+    }
+
+    function simulateException() {
+      addRfidStream({ event: '盘点', status: '异常' });
+      addAlert('发现异常标签，请人工复核');
+      showToast('已模拟异常标签：读取失败/重复/未绑定');
+    }
+
+    function clearRfidStream() {
+      const tbody = document.querySelector('#rfidStreamTable tbody');
+      if (tbody) tbody.innerHTML = '';
+      rfidSession.realtime = 0;
+      updateRfidKpis();
+      showToast('已清空实时读取流水');
+    }
+
+    function addAlert(text) {
+      const alertList = document.getElementById('alertList');
+      if (!alertList) return;
+      const div = document.createElement('div');
+      div.className = 'task-item';
+      div.innerHTML = `<span>${text}</span><span class="badge badge-red">新</span>`;
+      alertList.prepend(div);
+    }
+
+    function searchEpc() {
+      const input = document.getElementById('epcSearch').value.trim();
+      const epc = input || randomEpc();
+      const p = randomProduct();
+
+      document.getElementById('epcResult').innerHTML = `
+        <div class="card" style="box-shadow:none; background:#fcfcff;">
+          <div class="info-list">
+            <div class="info-row"><span>EPC</span><strong>${epc}</strong></div>
+            <div class="info-row"><span>SKU</span><strong>${p.sku}</strong></div>
+            <div class="info-row"><span>商品</span><strong>${p.name} · ${p.color} / ${p.size}</strong></div>
+            <div class="info-row"><span>当前位置</span><strong>上海旗舰店-女装区</strong></div>
+            <div class="info-row"><span>状态</span><span class="badge badge-green">在店可售</span></div>
+            <div class="info-row"><span>最近事件</span><strong>盘点读取 · ${nowTime()}</strong></div>
+          </div>
+        </div>
+      `;
+      showToast('标签查询成功');
+    }
+
+    function getCartTotal() {
+      return cart.reduce((sum, item) => sum + item.price * item.discount, 0);
+    }
+
+    function renderCart() {
+      const tbody = document.querySelector('#salesCartTable tbody');
+      if (!tbody) return;
+
+      tbody.innerHTML = '';
+      cart.forEach((item) => {
+        const amount = item.price * item.discount;
+        const badge = item.status === '已结算' ? 'badge-green' : item.status === '已扫描' ? 'badge-blue' : 'badge-yellow';
+        const row = tbody.insertRow();
+        row.innerHTML = `
+          <td>${item.epc}</td>
+          <td>${item.name}</td>
+          <td>${item.color} / ${item.size}</td>
+          <td>¥${fmt(item.price)}</td>
+          <td>${item.discount.toFixed(2)}</td>
+          <td>¥${fmt(amount)}</td>
+          <td><span class="badge ${badge}">${item.status}</span></td>
+        `;
+      });
+
+      document.getElementById('saleCount').textContent = cart.length;
+      document.getElementById('saleAmount').textContent = '¥' + fmt(getCartTotal());
+    }
+
+    function addCart() {
+      const p = randomProduct();
+      cart.push({
+        epc: randomEpc(),
+        ...p,
+        discount: 1,
+        status: '待扫描'
+      });
+      renderCart();
+      showToast('已添加商品：' + p.name + ' ' + p.color + '/' + p.size);
+    }
+
+    function scanCart() {
+      if (!cart.length) {
+        showToast('购物车为空，请先添加商品');
+        return;
+      }
+      cart.forEach((item) => {
+        if (item.status !== '已结算') item.status = '已扫描';
+      });
+      renderCart();
+      showToast('RFID 收银扫描完成，识别 ' + cart.length + ' 件商品');
+    }
+
+    function settleCart() {
+      if (!cart.length) {
+        showToast('购物车为空');
+        return;
+      }
+
+      const hasUnscanned = cart.some((item) => item.status === '待扫描');
+      if (hasUnscanned) {
+        showToast('存在未扫描商品，请先执行 RFID 收银扫描');
+        return;
+      }
+
+      const total = getCartTotal();
+      cart.forEach((item) => item.status = '已结算');
+      renderCart();
+      showToast('结算成功，应收金额 ¥' + fmt(total));
+
+      setTimeout(() => {
+        cart = [];
+        renderCart();
+      }, 1600);
+    }
+
+    function triggerGateAlarm() {
+      const p = randomProduct();
+      const epc = randomEpc();
+      addGateRow(epc, p.name + ' ' + p.color + '/' + p.size, '未结算出门');
+      addAlert('门禁告警：' + p.name + ' 未结算出门');
+      showToast('已触发门禁告警');
+    }
+
+    function addGateRow(epc, product, event) {
+      const tbody = document.querySelector('#gateEventTable tbody');
+      if (!tbody) return;
+
+      const row = tbody.insertRow(0);
+      row.innerHTML = `
+        <td>${nowTime()}</td>
+        <td>${epc}</td>
+        <td>${product}</td>
+        <td>${event}</td>
+        <td><span class="badge badge-red">未处理</span></td>
+        <td><button class="btn btn-light btn-sm" onclick="showToast('已处理门禁异常')">处理</button></td>
+      `;
+
+      if (tbody.rows.length > 20) tbody.deleteRow(-1);
+    }
+
+    function openInboundReceipt() {
+      inboundRead = 0;
+
+      const body = `
+        <div class="grid cols-2" style="margin-bottom:16px;">
+          <div class="card" style="box-shadow:none;">
+            <div class="card-sub">采购单</div>
+            <div style="font-weight:900; font-size:20px;">PO-20261002-01</div>
+            <div class="card-sub" style="margin-top:8px;">供应商：杭州衣尚供应链</div>
+          </div>
+          <div class="card" style="box-shadow:none;">
+            <div class="card-sub">预计件数</div>
+            <div style="font-weight:900; font-size:20px;">${fmt(inboundTotal)} 件</div>
+            <div class="card-sub" style="margin-top:8px;">已读件数：<span id="inboundReadText">0</span></div>
+            <div class="progress" style="margin-top:10px;">
+              <div id="inboundProgressBar" class="progress-bar" style="width:0%;"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="table-wrap">
+          <table id="inboundScanTable">
+            <thead>
+              <tr>
+                <th>时间</th>
+                <th>EPC</th>
+                <th>商品</th>
+                <th>颜色/尺码</th>
+                <th>结果</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      `;
+
+      const footer = `
+        <button class="btn btn-light" onclick="inboundScan()">模拟RFID批量读取</button>
+        <button class="btn btn-primary" onclick="confirmInbound()">确认收货</button>
+      `;
+
+      showModal({
+        title: '批量 RFID 收货',
+        sub: '通过门禁或手持机批量读取到货服装，并自动比对采购单。',
+        body,
+        footer
+      });
+    }
+
+    function addInboundRow() {
+      const table = document.getElementById('inboundScanTable');
+      const tbody = table ? table.querySelector('tbody') : null;
+      if (!tbody) return;
+
+      const p = randomProduct();
+      const row = tbody.insertRow(0);
+      row.innerHTML = `
+        <td>${nowTime()}</td>
+        <td>${randomEpc()}</td>
+        <td>${p.name}</td>
+        <td>${p.color} / ${p.size}</td>
+        <td><span class="badge badge-green">匹配</span></td>
+      `;
+
+      if (tbody.rows.length > 20) tbody.deleteRow(-1);
+    }
+
+    function inboundScan() {
+      const batch = 160;
+      inboundRead = Math.min(inboundTotal, inboundRead + batch);
+
+      for (let i = 0; i < 5; i++) addInboundRow();
+
+      const pct = Math.round((inboundRead / inboundTotal) * 100);
+      document.getElementById('inboundProgressBar').style.width = pct + '%';
+      document.getElementById('inboundReadText').textContent = fmt(inboundRead);
+
+      if (inboundRead >= inboundTotal) {
+        showToast('RFID 收货读取完成，无差异');
+      } else {
+        showToast('已读取 ' + fmt(inboundRead) + ' 件');
+      }
+    }
+
+    function confirmInbound() {
+      closeModal();
+      showToast('收货确认完成，已生成入库单并增加库存');
+    }
+
+    function openStocktakeTask() {
+      stocktakeRead = 0;
+
+      const body = `
+        <div class="grid cols-2" style="margin-bottom:16px;">
+          <div class="card" style="box-shadow:none;">
+            <div class="card-sub">盘点任务</div>
+            <div style="font-weight:900; font-size:20px;">ST-20261003-01</div>
+            <div class="card-sub" style="margin-top:8px;">范围：上海旗舰店-女装区</div>
+          </div>
+          <div class="card" style="box-shadow:none;">
+            <div class="card-sub">系统件数</div>
+            <div style="font-weight:900; font-size:20px;">${fmt(stocktakeSystem)} 件</div>
+            <div class="card-sub" style="margin-top:8px;">已读件数：<span id="stocktakeReadText">0</span> · 差异：<span id="stocktakeVarianceText">0</span></div>
+            <div class="progress" style="margin-top:10px;">
+              <div id="stocktakeProgressBar" class="progress-bar" style="width:0%;"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="table-wrap">
+          <table id="stocktakeScanTable">
+            <thead>
+              <tr>
+                <th>时间</th>
+                <th>EPC</th>
+                <th>商品</th>
+                <th>位置</th>
+                <th>状态</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      `;
+
+      const footer = `
+        <button class="btn btn-light" onclick="stocktakeScan()">模拟手持机读取</button>
+        <button class="btn btn-primary" onclick="completeStocktake()">完成盘点</button>
+      `;
+
+      showModal({
+        title: '门店 RFID 盘点',
+        sub: '使用手持机或盘点车进行批量盘点，系统实时计算差异。',
+        body,
+        footer
+      });
+    }
+
+    function addStocktakeRow() {
+      const table = document.getElementById('stocktakeScanTable');
+      const tbody = table ? table.querySelector('tbody') : null;
+      if (!tbody) return;
+
+      const p = randomProduct();
+      const locations = ['A-01-02', 'A-01-05', 'B-02-03', '陈列区-02', '试衣间-01'];
+      const location = locations[Math.floor(Math.random() * locations.length)];
+
+      const row = tbody.insertRow(0);
+      row.innerHTML = `
+        <td>${nowTime()}</td>
+        <td>${randomEpc()}</td>
+        <td>${p.name}</td>
+        <td>${location}</td>
+        <td><span class="badge badge-green">已读取</span></td>
+      `;
+
+      if (tbody.rows.length > 20) tbody.deleteRow(-1);
+    }
+
+    function stocktakeScan() {
+      const batch = 35;
+      stocktakeRead = Math.min(stocktakeSystem + 3, stocktakeRead + batch);
+
+      for (let i = 0; i < 4; i++) addStocktakeRow();
+
+      const pct = Math.min(100, Math.round((stocktakeRead / stocktakeSystem) * 100));
+      const variance = stocktakeRead - stocktakeSystem;
+
+      document.getElementById('stocktakeProgressBar').style.width = pct + '%';
+      document.getElementById('stocktakeReadText').textContent = fmt(stocktakeRead);
+      document.getElementById('stocktakeVarianceText').textContent = (variance >= 0 ? '+' : '') + variance;
+
+      if (stocktakeRead >= stocktakeSystem) {
+        showToast('盘点读取完成，发现差异');
+      } else {
+        showToast('已读取 ' + fmt(stocktakeRead) + ' 件');
+      }
+    }
+
+    function completeStocktake() {
+      const variance = stocktakeRead - stocktakeSystem;
+      const accuracy = Math.max(0, 100 - (Math.abs(variance) / stocktakeSystem) * 100).toFixed(2);
+      closeModal();
+      showToast(`盘点完成：系统 ${fmt(stocktakeSystem)} 件，实盘 ${fmt(stocktakeRead)} 件，准确率 ${accuracy}%`);
+    }
+
+    function openTrace(sku) {
+      const p = productPool.find((item) => item.sku === sku) || randomProduct();
+      const epc = randomEpc();
+
+      const body = `
+        <div class="grid cols-2" style="margin-bottom:16px;">
+          <div class="card" style="box-shadow:none;">
+            <div class="card-sub">EPC</div>
+            <strong>${epc}</strong>
+            <div class="card-sub" style="margin-top:8px;">状态：在店可售</div>
+          </div>
+          <div class="card" style="box-shadow:none;">
+            <div class="card-sub">SKU</div>
+            <strong>${p.sku}</strong>
+            <div class="card-sub" style="margin-top:8px;">${p.name} · ${p.color} / ${p.size}</div>
+          </div>
+        </div>
+
+        <div class="timeline">
+          <div class="timeline-item">
+            <div class="timeline-title">采购订单创建</div>
+            <div class="timeline-sub">2026-09-20 09:12 · PO-20260918-02 · 供应商：杭州衣尚供应链</div>
+          </div>
+          <div class="timeline-item">
+            <div class="timeline-title">RFID 收货</div>
+            <div class="timeline-sub">2026-09-25 14:30 · 华东总仓 · 门禁批量读取成功</div>
+          </div>
+          <div class="timeline-item">
+            <div class="timeline-title">上架</div>
+            <div class="timeline-sub">2026-09-26 10:05 · 华东总仓 A-02-05</div>
+          </div>
+          <div class="timeline-item">
+            <div class="timeline-title">调拨</div>
+            <div class="timeline-sub">2026-09-30 18:22 · 调拨至上海旗舰店</div>
+          </div>
+          <div class="timeline-item">
+            <div class="timeline-title">试衣间读取</div>
+            <div class="timeline-sub">2026-10-02 11:47 · 试衣间-01 · 顾客试穿</div>
+          </div>
+          <div class="timeline-item">
+            <div class="timeline-title">盘点读取</div>
+            <div class="timeline-sub">2026-10-03 09:12 · 手持机-01 · 读取正常</div>
+          </div>
+        </div>
+      `;
+
+      const footer = `
+        <button class="btn btn-light" onclick="closeModal()">关闭</button>
+        <button class="btn btn-primary" onclick="closeModal(); showToast('已导出追溯报告')">导出追溯</button>
+      `;
+
+      showModal({
+        title: '单件服装追溯',
+        sub: '通过 RFID EPC 查询该件服装的全生命周期轨迹。',
+        body,
+        footer
+      });
+    }
+
+    function selectCard(el) {
+      const parent = el.parentElement;
+      if (!parent) return;
+      parent.querySelectorAll('.radio-card').forEach((card) => card.classList.remove('selected'));
+      el.classList.add('selected');
+    }
+
+    function openReturnQuality() {
+      const body = `
+        <div class="radio-cards">
+          <label class="radio-card selected" onclick="selectCard(this)">
+            <div class="radio-title">良品</div>
+            <div class="radio-sub">吊牌完整，无污渍，可重新上架</div>
+          </label>
+          <label class="radio-card" onclick="selectCard(this)">
+            <div class="radio-title">待清洗</div>
+            <div class="radio-sub">轻微异味/褶皱，清洗后可上架</div>
+          </label>
+          <label class="radio-card" onclick="selectCard(this)">
+            <div class="radio-title">不可售</div>
+            <div class="radio-sub">破损、污渍、配件缺失</div>
+          </label>
+        </div>
+
+        <div class="form-grid" style="margin-top:16px;">
+          <div class="form-group">
+            <label>处理方式</label>
+            <select>
+              <option>重新上架</option>
+              <option>清洗后上架</option>
+              <option>转次品区</option>
+              <option>报废</option>
+              <option>退供应商</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>质检员</label>
+            <select>
+              <option>李婷</option>
+              <option>王强</option>
+              <option>赵敏</option>
+            </select>
+          </div>
+          <div class="form-group" style="grid-column:1/-1;">
+            <label>备注</label>
+            <textarea rows="3" placeholder="填写质检说明、照片编号、瑕疵描述"></textarea>
+          </div>
+        </div>
+      `;
+
+      const footer = `
+        <button class="btn btn-light" onclick="closeModal()">取消</button>
+        <button class="btn btn-primary" onclick="submitReturnQuality()">提交质检结果</button>
+      `;
+
+      showModal({
+        title: '退货质检',
+        sub: 'RT-20261003-01 · A2001-BLK-M · 羊毛混纺西装 黑色 M',
+        body,
+        footer
+      });
+    }
+
+    function submitReturnQuality() {
+      closeModal();
+      showToast('质检完成，已按规则进入后续处理流程');
+    }
+
+    document.querySelectorAll('.nav-item').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        switchPage(btn.dataset.page);
+      });
+    });
+
+    // 初始化
+    updateRfidKpis();
+    renderCart();
+
+    // 预置少量 RFID 流水
+    const seedEvents = ['入库', '销售', '盘点', '调拨', '门禁'];
+    for (let i = 0; i < 5; i++) {
+      addRfidStream({
+        event: seedEvents[i % seedEvents.length],
+        status: i === 3 ? '异常' : '正常'
+      });
+    }
+  </script>
+</body>
+</html>

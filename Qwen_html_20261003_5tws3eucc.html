@@ -1,0 +1,996 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>RFID 服装零售 WMS 原型</title>
+  <style>
+    :root {
+      --bg: #f4f6f9;
+      --card: #ffffff;
+      --line: #e2e8f0;
+      --text: #0f172a;
+      --muted: #64748b;
+      --primary: #4f46e5; /* 靛蓝 */
+      --primary-soft: #eef2ff;
+      --accent: #f43f5e; /* 珊瑚红 */
+      --accent-soft: #ffe4e6;
+      --success: #10b981;
+      --success-soft: #d1fae5;
+      --warning: #f59e0b;
+      --warning-soft: #fef3c7;
+      --sidebar: #1e293b;
+      --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+      --radius: 16px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "PingFang SC", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+    }
+
+    button, input, select { font-family: inherit; font-size: 14px; }
+    .hidden { display: none !important; }
+
+    /* Layout */
+    .app-shell { display: flex; min-height: 100vh; }
+    .sidebar {
+      width: 240px;
+      background: var(--sidebar);
+      color: #cbd5e1;
+      position: fixed;
+      top: 0; bottom: 0; left: 0;
+      display: flex;
+      flex-direction: column;
+      z-index: 30;
+    }
+    .brand {
+      padding: 24px 20px;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .brand-icon {
+      width: 36px; height: 36px;
+      background: linear-gradient(135deg, var(--primary), var(--accent));
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      color: #fff; font-weight: 900; font-size: 18px;
+    }
+    .brand-text { font-weight: 800; color: #fff; font-size: 16px; }
+    .brand-sub { font-size: 11px; color: #94a3b8; }
+
+    .nav { padding: 16px 12px; flex: 1; overflow-y: auto; }
+    .nav-item {
+      width: 100%;
+      display: flex; align-items: center; gap: 12px;
+      padding: 12px 16px;
+      border: none; background: transparent; color: #94a3b8;
+      border-radius: 10px; cursor: pointer; text-align: left;
+      margin-bottom: 4px; font-size: 14px; font-weight: 500;
+      transition: all 0.2s;
+    }
+    .nav-item:hover { background: rgba(255,255,255,0.05); color: #fff; }
+    .nav-item.active {
+      background: var(--primary);
+      color: #fff;
+      box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
+    }
+    .nav-icon { font-size: 18px; }
+
+    .main { flex: 1; margin-left: 240px; display: flex; flex-direction: column; }
+    
+    .topbar {
+      height: 64px;
+      background: rgba(255,255,255,0.9);
+      backdrop-filter: blur(8px);
+      border-bottom: 1px solid var(--line);
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 24px;
+      position: sticky; top: 0; z-index: 20;
+    }
+    .page-title { font-size: 18px; font-weight: 800; }
+    .topbar-right { display: flex; align-items: center; gap: 16px; }
+    
+    .device-status {
+      display: flex; align-items: center; gap: 8px;
+      background: var(--success-soft); color: #065f46;
+      padding: 6px 12px; border-radius: 20px; font-size: 12px; font-weight: 600;
+    }
+    .status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--success); animation: pulse 2s infinite; }
+    @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
+
+    .content { padding: 24px; display: flex; flex-direction: column; gap: 20px; }
+    .page { display: none; }
+    .page.active { display: block; animation: fadeIn 0.3s ease; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+    /* Components */
+    .grid { display: grid; gap: 20px; }
+    .cols-2 { grid-template-columns: repeat(2, 1fr); }
+    .cols-3 { grid-template-columns: repeat(3, 1fr); }
+    .cols-4 { grid-template-columns: repeat(4, 1fr); }
+    .span-2 { grid-column: span 2; }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 20px;
+    }
+    .card-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 16px;
+    }
+    .card-title { font-size: 16px; font-weight: 800; }
+    .card-sub { color: var(--muted); font-size: 13px; margin-top: 2px; }
+
+    .kpi-card { display: flex; flex-direction: column; gap: 12px; }
+    .kpi-top { display: flex; justify-content: space-between; align-items: center; }
+    .kpi-icon {
+      width: 40px; height: 40px; border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 20px;
+    }
+    .kpi-value { font-size: 28px; font-weight: 900; line-height: 1; }
+    .kpi-label { color: var(--muted); font-size: 13px; font-weight: 500; }
+    .kpi-trend { font-size: 12px; font-weight: 700; }
+    .trend-up { color: var(--success); }
+    .trend-down { color: var(--accent); }
+
+    .btn {
+      border: none; border-radius: 10px;
+      padding: 10px 16px; cursor: pointer;
+      font-weight: 700; font-size: 14px;
+      transition: all 0.2s;
+      display: inline-flex; align-items: center; gap: 6px;
+    }
+    .btn:hover { transform: translateY(-1px); box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
+    .btn-primary { background: var(--primary); color: #fff; }
+    .btn-accent { background: var(--accent); color: #fff; }
+    .btn-light { background: #f1f5f9; color: var(--text); }
+    .btn-success { background: var(--success); color: #fff; }
+    .btn-sm { padding: 6px 12px; font-size: 12px; border-radius: 8px; }
+
+    .badge {
+      display: inline-flex; align-items: center; gap: 4px;
+      padding: 4px 10px; border-radius: 20px;
+      font-size: 12px; font-weight: 700;
+    }
+    .badge-blue { background: var(--primary-soft); color: var(--primary); }
+    .badge-green { background: var(--success-soft); color: #065f46; }
+    .badge-red { background: var(--accent-soft); color: #be123c; }
+    .badge-yellow { background: var(--warning-soft); color: #b45309; }
+    .badge-gray { background: #f1f5f9; color: var(--muted); }
+
+    table { width: 100%; border-collapse: collapse; }
+    th, td {
+      padding: 12px 16px; text-align: left;
+      border-bottom: 1px solid var(--line);
+      font-size: 14px;
+    }
+    th { color: var(--muted); font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; }
+    tbody tr:hover { background: #f8fafc; }
+
+    /* Matrix (Color-Size) */
+    .matrix-table { width: auto; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+    .matrix-table th, .matrix-table td {
+      padding: 8px 12px; text-align: center; border: 1px solid var(--line);
+      min-width: 60px; font-size: 13px;
+    }
+    .matrix-table th { background: #f8fafc; color: var(--text); font-weight: 700; }
+    .matrix-cell { font-weight: 600; }
+    .matrix-cell.zero { color: #cbd5e1; }
+
+    /* RFID Specific UI */
+    .rfid-tunnel {
+      background: linear-gradient(135deg, #1e293b, #0f172a);
+      border-radius: 16px;
+      padding: 30px;
+      color: #fff;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 20px;
+      position: relative;
+      overflow: hidden;
+    }
+    .tunnel-visual {
+      width: 100%;
+      height: 160px;
+      border: 2px dashed rgba(255,255,255,0.2);
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+    .tunnel-wave {
+      position: absolute;
+      width: 100%; height: 100%;
+      border-radius: 12px;
+      border: 2px solid var(--primary);
+      opacity: 0;
+    }
+    .scanning .tunnel-wave {
+      animation: wave 1.5s infinite ease-out;
+    }
+    .scanning .tunnel-wave:nth-child(2) { animation-delay: 0.5s; }
+    .scanning .tunnel-wave:nth-child(3) { animation-delay: 1s; }
+    @keyframes wave {
+      0% { transform: scale(0.8); opacity: 0.8; }
+      100% { transform: scale(1.2); opacity: 0; }
+    }
+    .tunnel-icon { font-size: 48px; z-index: 2; }
+    .tunnel-stats {
+      display: flex; gap: 30px; text-align: center;
+    }
+    .tunnel-stat-val { font-size: 24px; font-weight: 900; color: var(--primary); }
+    .tunnel-stat-label { font-size: 12px; color: #94a3b8; }
+
+    /* Radar Find */
+    .radar-container {
+      width: 200px; height: 200px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(79,70,229,0.1) 0%, rgba(79,70,229,0) 70%);
+      border: 2px solid var(--line);
+      position: relative;
+      display: flex; align-items: center; justify-content: center;
+      margin: 20px auto;
+    }
+    .radar-sweep {
+      position: absolute;
+      width: 100%; height: 100%;
+      border-radius: 50%;
+      border-top: 3px solid var(--primary);
+      opacity: 0;
+    }
+    .searching .radar-sweep {
+      opacity: 1;
+      animation: sweep 2s infinite linear;
+    }
+    @keyframes sweep { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    .radar-target {
+      width: 20px; height: 20px;
+      background: var(--accent);
+      border-radius: 50%;
+      box-shadow: 0 0 15px var(--accent);
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+    .searching.found .radar-target { opacity: 1; animation: blink 0.5s infinite alternate; }
+    @keyframes blink { from { transform: scale(1); } to { transform: scale(1.3); } }
+    
+    .signal-bar {
+      display: flex; gap: 4px; align-items: flex-end; height: 30px;
+    }
+    .signal-bar span {
+      width: 8px; background: #e2e8f0; border-radius: 2px;
+    }
+    .signal-bar.active span:nth-child(1) { background: var(--success); height: 20%; }
+    .signal-bar.active span:nth-child(2) { background: var(--success); height: 40%; }
+    .signal-bar.active span:nth-child(3) { background: var(--success); height: 60%; }
+    .signal-bar.active span:nth-child(4) { background: var(--success); height: 80%; }
+    .signal-bar.active span:nth-child(5) { background: var(--success); height: 100%; }
+    .signal-bar.weak span:nth-child(1) { background: var(--warning); height: 20%; }
+    .signal-bar.weak span:nth-child(2) { background: var(--warning); height: 40%; }
+
+    /* Sort Wall */
+    .sort-wall {
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      gap: 12px;
+    }
+    .sort-cell {
+      aspect-ratio: 1;
+      border: 2px solid var(--line);
+      border-radius: 12px;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      background: #f8fafc;
+      transition: all 0.3s;
+      position: relative;
+    }
+    .sort-cell.active {
+      border-color: var(--success);
+      background: var(--success-soft);
+      box-shadow: 0 0 20px rgba(16, 185, 129, 0.3);
+    }
+    .sort-cell.error {
+      border-color: var(--accent);
+      background: var(--accent-soft);
+    }
+    .cell-id { font-weight: 800; font-size: 18px; }
+    .cell-store { font-size: 11px; color: var(--muted); }
+    .cell-light {
+      width: 12px; height: 12px; border-radius: 50%;
+      background: #cbd5e1;
+      position: absolute; top: 8px; right: 8px;
+    }
+    .sort-cell.active .cell-light { background: var(--success); box-shadow: 0 0 8px var(--success); }
+    .sort-cell.error .cell-light { background: var(--accent); box-shadow: 0 0 8px var(--accent); }
+
+    /* Modal */
+    .modal-overlay {
+      position: fixed; inset: 0;
+      background: rgba(15, 23, 42, 0.6);
+      backdrop-filter: blur(4px);
+      display: flex; align-items: center; justify-content: center;
+      z-index: 100; padding: 20px;
+    }
+    .modal {
+      width: min(600px, 100%);
+      background: #fff;
+      border-radius: 20px;
+      overflow: hidden;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+    }
+    .modal-header {
+      padding: 20px 24px;
+      border-bottom: 1px solid var(--line);
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .modal-title { font-size: 18px; font-weight: 800; }
+    .modal-body { padding: 24px; }
+    .modal-footer {
+      padding: 16px 24px;
+      border-top: 1px solid var(--line);
+      display: flex; justify-content: flex-end; gap: 12px;
+      background: #f8fafc;
+    }
+    .close-btn {
+      background: none; border: none; font-size: 20px; cursor: pointer; color: var(--muted);
+    }
+
+    /* Toast */
+    .toast {
+      position: fixed; bottom: 24px; right: 24px;
+      background: var(--sidebar); color: #fff;
+      padding: 14px 20px; border-radius: 12px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+      opacity: 0; transform: translateY(20px);
+      transition: all 0.3s; z-index: 200;
+      font-weight: 600;
+    }
+    .toast.show { opacity: 1; transform: translateY(0); }
+
+    @media (max-width: 1024px) {
+      .sidebar { width: 72px; }
+      .brand-text, .brand-sub, .nav-label { display: none; }
+      .main { margin-left: 72px; }
+      .cols-4 { grid-template-columns: repeat(2, 1fr); }
+      .cols-3 { grid-template-columns: 1fr; }
+      .cols-2 { grid-template-columns: 1fr; }
+      .sort-wall { grid-template-columns: repeat(4, 1fr); }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="app-shell">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-icon">RF</div>
+        <div>
+          <div class="brand-text">Apparel WMS</div>
+          <div class="brand-sub">RFID 服装零售</div>
+        </div>
+      </div>
+      <nav class="nav">
+        <button class="nav-item active" data-page="dashboard">
+          <span class="nav-icon">📊</span> <span class="nav-label">数据看板</span>
+        </button>
+        <button class="nav-item" data-page="master">
+          <span class="nav-icon">👕</span> <span class="nav-label">商品与RFID</span>
+        </button>
+        <button class="nav-item" data-page="inbound">
+          <span class="nav-icon">📥</span> <span class="nav-label">通道门入库</span>
+        </button>
+        <button class="nav-item" data-page="inventory">
+          <span class="nav-icon">📦</span> <span class="nav-label">库存与盘点</span>
+        </button>
+        <button class="nav-item" data-page="outbound">
+          <span class="nav-icon">🚚</span> <span class="nav-label">分拣与出库</span>
+        </button>
+        <button class="nav-item" data-page="store">
+          <span class="nav-icon">🏬</span> <span class="nav-label">门店协同</span>
+        </button>
+      </nav>
+    </aside>
+
+    <!-- Main Content -->
+    <div class="main">
+      <header class="topbar">
+        <div class="page-title" id="pageTitle">数据看板</div>
+        <div class="topbar-right">
+          <div class="device-status">
+            <span class="status-dot"></span>
+            <span>IoT 设备在线: 42/45</span>
+          </div>
+          <div style="width:36px; height:36px; border-radius:50%; background:var(--primary); color:#fff; display:flex; align-items:center; justify-content:center; font-weight:800;">A</div>
+        </div>
+      </header>
+
+      <main class="content">
+        
+        <!-- 1. Dashboard -->
+        <section id="page-dashboard" class="page active">
+          <div class="grid cols-4">
+            <div class="card kpi-card">
+              <div class="kpi-top">
+                <div class="kpi-label">今日入库 (件)</div>
+                <div class="kpi-icon" style="background:var(--primary-soft); color:var(--primary);">📥</div>
+              </div>
+              <div class="kpi-value">45,280</div>
+              <div class="kpi-trend trend-up">↑ 12.5% 较昨日</div>
+            </div>
+            <div class="card kpi-card">
+              <div class="kpi-top">
+                <div class="kpi-label">今日出库 (件)</div>
+                <div class="kpi-icon" style="background:var(--success-soft); color:var(--success);">📤</div>
+              </div>
+              <div class="kpi-value">38,120</div>
+              <div class="kpi-trend trend-up">↑ 8.2% 较昨日</div>
+            </div>
+            <div class="card kpi-card">
+              <div class="kpi-top">
+                <div class="kpi-label">RFID 标签绑定</div>
+                <div class="kpi-icon" style="background:var(--warning-soft); color:var(--warning);">🏷️</div>
+              </div>
+              <div class="kpi-value">1.24M</div>
+              <div class="kpi-trend trend-up">活跃 EPC 码</div>
+            </div>
+            <div class="card kpi-card">
+              <div class="kpi-top">
+                <div class="kpi-label">盘点准确率</div>
+                <div class="kpi-icon" style="background:var(--accent-soft); color:var(--accent);">🎯</div>
+              </div>
+              <div class="kpi-value">99.98%</div>
+              <div class="kpi-trend trend-up">RFID 盲盘</div>
+            </div>
+          </div>
+
+          <div class="grid cols-2" style="margin-top: 20px;">
+            <div class="card">
+              <div class="card-header">
+                <div>
+                  <div class="card-title">IoT 设备状态监控</div>
+                  <div class="card-sub">RFID 硬件实时心跳与故障预警</div>
+                </div>
+                <button class="btn btn-light btn-sm">设备管理</button>
+              </div>
+              <table>
+                <thead><tr><th>设备类型</th><th>位置</th><th>状态</th><th>今日读取量</th></tr></thead>
+                <tbody>
+                  <tr><td>RFID 通道门</td><td>总仓 1号月台</td><td><span class="badge badge-green">● 在线</span></td><td>12,450</td></tr>
+                  <tr><td>RFID 通道门</td><td>总仓 2号月台</td><td><span class="badge badge-green">● 在线</span></td><td>10,210</td></tr>
+                  <tr><td>RFID 桌面机</td><td>质检打包台</td><td><span class="badge badge-green">● 在线</span></td><td>4,500</td></tr>
+                  <tr><td>RFID 打印机</td><td>标签房</td><td><span class="badge badge-red">● 缺纸</span></td><td>8,900</td></tr>
+                  <tr><td>手持机 (PDA)</td><td>盘点组 A</td><td><span class="badge badge-yellow">● 充电中</span></td><td>2,100</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="card">
+              <div class="card-header">
+                <div>
+                  <div class="card-title">门店库存健康度</div>
+                  <div class="card-sub">核心商圈门店 RFID 盘点差异与缺货预警</div>
+                </div>
+              </div>
+              <table>
+                <thead><tr><th>门店</th><th>库存量</th><th>盘点差异</th><th>缺码预警</th></tr></thead>
+                <tbody>
+                  <tr><td>上海南京路旗舰店</td><td>4,280</td><td><span class="badge badge-green">0</span></td><td><span class="badge badge-red">3 款</span></td></tr>
+                  <tr><td>北京三里屯店</td><td>3,850</td><td><span class="badge badge-yellow">2</span></td><td><span class="badge badge-red">5 款</span></td></tr>
+                  <tr><td>广州天河城店</td><td>2,910</td><td><span class="badge badge-green">0</span></td><td><span class="badge badge-green">无</span></td></tr>
+                  <tr><td>深圳万象城店</td><td>3,120</td><td><span class="badge badge-green">0</span></td><td><span class="badge badge-yellow">1 款</span></td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- 2. Master Data & RFID -->
+        <section id="page-master" class="page">
+          <div class="card">
+            <div class="card-header">
+              <div>
+                <div class="card-title">商品档案与 RFID 绑定</div>
+                <div class="card-sub">SPU-SKU 色码矩阵管理，EPC 编码规则配置</div>
+              </div>
+              <div style="display:flex; gap:10px;">
+                <button class="btn btn-light">导入商品</button>
+                <button class="btn btn-primary">+ 新增 SPU</button>
+              </div>
+            </div>
+            <table>
+              <thead>
+                <tr>
+                  <th>款号 (SPU)</th>
+                  <th>品名</th>
+                  <th>季节/波段</th>
+                  <th>色码矩阵 (SKU)</th>
+                  <th>EPC 规则</th>
+                  <th>操作</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong>AW26-JK-01</strong></td>
+                  <td>秋季轻奢风衣</td>
+                  <td><span class="badge badge-blue">2026秋 / 波1</span></td>
+                  <td><button class="btn btn-light btn-sm" onclick="openMatrixModal()">查看矩阵 (12 SKU)</button></td>
+                  <td>UPC + 序列号</td>
+                  <td><button class="btn btn-primary btn-sm" onclick="showToast('已下发 5000 张标签打印任务')">发码打印</button></td>
+                </tr>
+                <tr>
+                  <td><strong>AW26-SW-05</strong></td>
+                  <td>高领羊毛衫</td>
+                  <td><span class="badge badge-blue">2026秋 / 波2</span></td>
+                  <td><button class="btn btn-light btn-sm" onclick="openMatrixModal()">查看矩阵 (18 SKU)</button></td>
+                  <td>EAN-13 + 序列号</td>
+                  <td><button class="btn btn-primary btn-sm" onclick="showToast('已下发 8000 张标签打印任务')">发码打印</button></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- 3. Inbound (RFID Tunnel) -->
+        <section id="page-inbound" class="page">
+          <div class="grid cols-3">
+            <div class="card span-2 rfid-tunnel" id="tunnelCard">
+              <div style="width:100%; display:flex; justify-content:space-between; align-items:center;">
+                <div>
+                  <div style="font-size:18px; font-weight:800;">1号月台 RFID 通道门</div>
+                  <div style="font-size:13px; color:#94a3b8;">整箱/整托非视距批量秒收</div>
+                </div>
+                <span class="badge badge-green" style="background:rgba(16,185,129,0.2); color:#34d399;">● 运行中</span>
+              </div>
+              
+              <div class="tunnel-visual" id="tunnelVisual">
+                <div class="tunnel-wave"></div>
+                <div class="tunnel-wave"></div>
+                <div class="tunnel-wave"></div>
+                <div class="tunnel-icon">📦📦📦</div>
+              </div>
+
+              <div class="tunnel-stats">
+                <div><div class="tunnel-stat-val" id="readCount">0</div><div class="tunnel-stat-label">已读取 (件)</div></div>
+                <div><div class="tunnel-stat-val" id="expectCount">500</div><div class="tunnel-stat-label">ASN 预期</div></div>
+                <div><div class="tunnel-stat-val" id="diffCount" style="color:var(--accent);">0</div><div class="tunnel-stat-label">差异报警</div></div>
+              </div>
+
+              <button class="btn btn-accent" style="width:100%; justify-content:center; padding:14px;" onclick="startTunnelScan()">
+                📡 模拟推车过门 (开始读取)
+              </button>
+            </div>
+
+            <div class="card">
+              <div class="card-header">
+                <div class="card-title">待收货 ASN</div>
+              </div>
+              <div style="display:flex; flex-direction:column; gap:12px;">
+                <div style="padding:12px; border:1px solid var(--line); border-radius:12px;">
+                  <div style="font-weight:700;">ASN-20261003-01</div>
+                  <div style="font-size:12px; color:var(--muted);">供应商: 东莞制衣厂 | 500件</div>
+                  <div style="margin-top:8px;"><span class="badge badge-yellow">等待过门</span></div>
+                </div>
+                <div style="padding:12px; border:1px solid var(--line); border-radius:12px;">
+                  <div style="font-weight:700;">ASN-20261003-02</div>
+                  <div style="font-size:12px; color:var(--muted);">供应商: 杭州丝绸 | 320件</div>
+                  <div style="margin-top:8px;"><span class="badge badge-blue">预约中</span></div>
+                </div>
+                <div style="padding:12px; border:1px solid var(--line); border-radius:12px;">
+                  <div style="font-weight:700;">ASN-20261002-08</div>
+                  <div style="font-size:12px; color:var(--muted);">供应商: 广州牛仔 | 800件</div>
+                  <div style="margin-top:8px;"><span class="badge badge-red">差异待处理 (少2件)</span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- 4. Inventory & Radar Find -->
+        <section id="page-inventory" class="page">
+          <div class="grid cols-2">
+            <div class="card">
+              <div class="card-header">
+                <div>
+                  <div class="card-title">RFID 秒级盘点任务</div>
+                  <div class="card-sub">手持机/盘点车挥扫，自动计算差异</div>
+                </div>
+                <button class="btn btn-primary" onclick="showToast('已下发盘点任务至 PDA-05')">+ 新建盘点</button>
+              </div>
+              <table>
+                <thead><tr><th>任务号</th><th>区域</th><th>进度</th><th>状态</th></tr></thead>
+                <tbody>
+                  <tr>
+                    <td>INV-A-1003</td>
+                    <td>A区 (秋季新品)</td>
+                    <td>
+                      <div style="display:flex; align-items:center; gap:8px;">
+                        <div style="flex:1; height:6px; background:#e2e8f0; border-radius:3px;">
+                          <div style="width:100%; height:100%; background:var(--success); border-radius:3px;"></div>
+                        </div>
+                        <span style="font-size:12px; font-weight:700;">100%</span>
+                      </div>
+                    </td>
+                    <td><span class="badge badge-green">已完成</span></td>
+                  </tr>
+                  <tr>
+                    <td>INV-B-1003</td>
+                    <td>B区 (夏季滞销)</td>
+                    <td>
+                      <div style="display:flex; align-items:center; gap:8px;">
+                        <div style="flex:1; height:6px; background:#e2e8f0; border-radius:3px;">
+                          <div style="width:65%; height:100%; background:var(--primary); border-radius:3px;"></div>
+                        </div>
+                        <span style="font-size:12px; font-weight:700;">65%</span>
+                      </div>
+                    </td>
+                    <td><span class="badge badge-blue">盘点中</span></td>
+                  </tr>
+                  <tr>
+                    <td>INV-R-1002</td>
+                    <td>退货暂存区</td>
+                    <td>
+                      <div style="display:flex; align-items:center; gap:8px;">
+                        <div style="flex:1; height:6px; background:#e2e8f0; border-radius:3px;"></div>
+                        <span style="font-size:12px; font-weight:700;">0%</span>
+                      </div>
+                    </td>
+                    <td><span class="badge badge-gray">待执行</span></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div class="card" style="display:flex; flex-direction:column; align-items:center;">
+              <div class="card-header" style="width:100%;">
+                <div>
+                  <div class="card-title">📡 雷达找货 (RSSI 寻物)</div>
+                  <div class="card-sub">输入 EPC 或 SKU，通过信号强度定位衣物</div>
+                </div>
+              </div>
+              
+              <div style="width:100%; display:flex; gap:10px; margin-bottom:20px;">
+                <input type="text" id="radarInput" placeholder="输入 SKU 或 EPC 码..." style="flex:1; padding:10px; border:1px solid var(--line); border-radius:8px;" value="AW26-JK-01-BK-L" />
+                <button class="btn btn-primary" onclick="startRadar()">搜索</button>
+              </div>
+
+              <div class="radar-container" id="radarContainer">
+                <div class="radar-sweep"></div>
+                <div class="radar-target"></div>
+              </div>
+
+              <div style="display:flex; align-items:center; gap:12px; margin-top:10px;">
+                <span style="font-weight:700;">信号强度:</span>
+                <div class="signal-bar" id="signalBar">
+                  <span></span><span></span><span></span><span></span><span></span>
+                </div>
+                <span id="signalText" style="color:var(--muted); font-size:13px;">等待搜索</span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- 5. Outbound & Sort Wall -->
+        <section id="page-outbound" class="page">
+          <div class="card">
+            <div class="card-header">
+              <div>
+                <div class="card-title">RFID 智能分拣墙 (播种墙)</div>
+                <div class="card-sub">扫描衣物，对应门店/订单格口自动亮灯防错</div>
+              </div>
+              <div style="display:flex; gap:10px;">
+                <button class="btn btn-light" onclick="showToast('已重置分拣墙')">重置</button>
+                <button class="btn btn-success" onclick="simulateSort()">📡 模拟扫描衣物</button>
+              </div>
+            </div>
+
+            <div class="sort-wall" id="sortWall">
+              <!-- Cells generated by JS -->
+            </div>
+          </div>
+
+          <div class="card" style="margin-top:20px;">
+            <div class="card-header">
+              <div class="card-title">出库复核与发货</div>
+            </div>
+            <table>
+              <thead><tr><th>波次号</th><th>目标</th><th>计划件数</th><th>已复核</th><th>物流</th><th>状态</th></tr></thead>
+              <tbody>
+                <tr>
+                  <td>WAVE-1003-A</td>
+                  <td>上海区 5 家门店</td>
+                  <td>1,200</td>
+                  <td>1,200</td>
+                  <td>顺丰速运</td>
+                  <td><span class="badge badge-green">已装车</span></td>
+                </tr>
+                <tr>
+                  <td>WAVE-1003-B</td>
+                  <td>北京区 3 家门店</td>
+                  <td>850</td>
+                  <td>620</td>
+                  <td>京东物流</td>
+                  <td><span class="badge badge-blue">复核中</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- 6. Store Ops -->
+        <section id="page-store" class="page">
+          <div class="notice" style="background:var(--primary-soft); color:var(--primary); padding:16px; border-radius:12px; font-weight:600; margin-bottom:20px;">
+            💡 门店视角：店员使用手持 PDA 即可完成收货、找货、每日打烊秒级盘点，数据实时同步总仓 WMS。
+          </div>
+          <div class="grid cols-3">
+            <div class="card">
+              <div class="card-title">门店调拨单</div>
+              <div class="card-sub">总仓 -> 门店</div>
+              <div style="margin-top:16px; display:flex; flex-direction:column; gap:12px;">
+                <div style="padding:12px; background:#f8fafc; border-radius:10px;">
+                  <div style="display:flex; justify-content:space-between;">
+                    <strong>TR-8821</strong>
+                    <span class="badge badge-yellow">运输中</span>
+                  </div>
+                  <div style="font-size:12px; color:var(--muted); margin-top:4px;">上海南京路店 | 120件 | 预计明日 10:00 到达</div>
+                </div>
+                <div style="padding:12px; background:#f8fafc; border-radius:10px;">
+                  <div style="display:flex; justify-content:space-between;">
+                    <strong>TR-8820</strong>
+                    <span class="badge badge-green">待收货</span>
+                  </div>
+                  <div style="font-size:12px; color:var(--muted); margin-top:4px;">北京三里屯店 | 85件 | 已到店，待 PDA 扫收</div>
+                </div>
+              </div>
+            </div>
+            <div class="card">
+              <div class="card-title">门店智能补货</div>
+              <div class="card-sub">基于 RFID 陈列监控与试衣间数据</div>
+              <div style="margin-top:16px; display:flex; flex-direction:column; gap:12px;">
+                <div style="padding:12px; border:1px solid var(--accent-soft); border-radius:10px;">
+                  <div style="font-weight:700; color:var(--accent);">⚠️ 陈列缺码预警</div>
+                  <div style="font-size:13px; margin-top:4px;">AW26-JK-01 (黑色) 卖场缺 M、L 码，请从后仓补货。</div>
+                </div>
+                <div style="padding:12px; border:1px solid var(--warning-soft); border-radius:10px;">
+                  <div style="font-weight:700; color:var(--warning);">🔥 高试穿低转化</div>
+                  <div style="font-size:13px; margin-top:4px;">AW26-SW-05 (白色) 今日试穿 45 次，购买 2 件，建议检查尺码或版型。</div>
+                </div>
+              </div>
+            </div>
+            <div class="card">
+              <div class="card-title">门店退换货</div>
+              <div class="card-sub">RFID 解绑与重新上架</div>
+              <div style="margin-top:16px; display:flex; flex-direction:column; gap:12px;">
+                <div style="padding:12px; background:#f8fafc; border-radius:10px;">
+                  <div style="display:flex; justify-content:space-between;">
+                    <strong>RET-992</strong>
+                    <span class="badge badge-blue">处理中</span>
+                  </div>
+                  <div style="font-size:12px; color:var(--muted); margin-top:4px;">顾客退货 2 件，质检无损，已重新绑定 EPC 上架。</div>
+                </div>
+                <div style="padding:12px; background:#f8fafc; border-radius:10px;">
+                  <div style="display:flex; justify-content:space-between;">
+                    <strong>RET-991</strong>
+                    <span class="badge badge-red">退回总仓</span>
+                  </div>
+                  <div style="font-size:12px; color:var(--muted); margin-top:4px;">污损 1 件，已解绑 RFID，打包退回总仓次品区。</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+      </main>
+    </div>
+  </div>
+
+  <!-- Modal -->
+  <div id="modalOverlay" class="modal-overlay hidden" onclick="if(event.target===this)closeModal()">
+    <div class="modal">
+      <div class="modal-header">
+        <div class="modal-title" id="modalTitle">弹窗</div>
+        <button class="close-btn" onclick="closeModal()">✕</button>
+      </div>
+      <div class="modal-body" id="modalBody"></div>
+      <div class="modal-footer" id="modalFooter"></div>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div id="toast" class="toast"></div>
+
+  <script>
+    // Navigation
+    document.querySelectorAll('.nav-item').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        
+        document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+        const pageId = 'page-' + btn.dataset.page;
+        document.getElementById(pageId).classList.add('active');
+        
+        document.getElementById('pageTitle').textContent = btn.querySelector('.nav-label').textContent;
+      });
+    });
+
+    // Toast
+    let toastTimer;
+    function showToast(msg) {
+      const t = document.getElementById('toast');
+      t.textContent = msg;
+      t.classList.add('show');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => t.classList.remove('show'), 2500);
+    }
+
+    // Modal
+    function openModal(title, body, footer) {
+      document.getElementById('modalTitle').textContent = title;
+      document.getElementById('modalBody').innerHTML = body;
+      document.getElementById('modalFooter').innerHTML = footer || '';
+      document.getElementById('modalOverlay').classList.remove('hidden');
+    }
+    function closeModal() {
+      document.getElementById('modalOverlay').classList.add('hidden');
+    }
+
+    // Matrix Modal
+    function openMatrixModal() {
+      const body = `
+        <p style="color:var(--muted); margin-bottom:16px;">款号: <strong>AW26-JK-01</strong> (秋季轻奢风衣) - 色码矩阵库存分布</p>
+        <table class="matrix-table">
+          <thead>
+            <tr>
+              <th>颜色 \ 尺码</th>
+              <th>XS</th><th>S</th><th>M</th><th>L</th><th>XL</th><th>总计</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <th>黑色 (BK)</th>
+              <td class="matrix-cell">45</td>
+              <td class="matrix-cell">120</td>
+              <td class="matrix-cell">210</td>
+              <td class="matrix-cell">180</td>
+              <td class="matrix-cell">60</td>
+              <th>615</th>
+            </tr>
+            <tr>
+              <th>卡其 (KH)</th>
+              <td class="matrix-cell">30</td>
+              <td class="matrix-cell">95</td>
+              <td class="matrix-cell">150</td>
+              <td class="matrix-cell">110</td>
+              <td class="matrix-cell zero">0</td>
+              <th>385</th>
+            </tr>
+            <tr>
+              <th>藏青 (NV)</th>
+              <td class="matrix-cell zero">0</td>
+              <td class="matrix-cell">40</td>
+              <td class="matrix-cell">85</td>
+              <td class="matrix-cell">65</td>
+              <td class="matrix-cell">20</td>
+              <th>210</th>
+            </tr>
+            <tr>
+              <th>总计</th>
+              <th>75</th><th>255</th><th>445</th><th>355</th><th>80</th><th style="color:var(--primary);">1,210</th>
+            </tr>
+          </tbody>
+        </table>
+        <div style="margin-top:16px; padding:12px; background:var(--primary-soft); border-radius:8px; font-size:13px; color:var(--primary);">
+          💡 每一件衣服在入库时，都会被赋予唯一的 RFID EPC 码，与上述 SKU 绑定，实现单品级追踪。
+        </div>
+      `;
+      openModal('色码矩阵 (Size-Color Matrix)', body, '<button class="btn btn-primary" onclick="closeModal()">关闭</button>');
+    }
+
+    // RFID Tunnel Simulation
+    function startTunnelScan() {
+      const visual = document.getElementById('tunnelVisual');
+      const readEl = document.getElementById('readCount');
+      const diffEl = document.getElementById('diffCount');
+      
+      visual.parentElement.classList.add('scanning');
+      readEl.textContent = '0';
+      diffEl.textContent = '0';
+      
+      let count = 0;
+      const target = 498; // 2 missing
+      const interval = setInterval(() => {
+        count += Math.floor(Math.random() * 50) + 20;
+        if (count >= target) {
+          count = target;
+          clearInterval(interval);
+          visual.parentElement.classList.remove('scanning');
+          diffEl.textContent = '2';
+          showToast('⚠️ 通道门报警：ASN 预期 500 件，实读 498 件，少 2 件！');
+        }
+        readEl.textContent = count;
+      }, 150);
+    }
+
+    // Radar Find Simulation
+    function startRadar() {
+      const container = document.getElementById('radarContainer');
+      const bar = document.getElementById('signalBar');
+      const text = document.getElementById('signalText');
+      
+      container.classList.add('searching');
+      container.classList.remove('found');
+      bar.className = 'signal-bar';
+      text.textContent = '搜索中...';
+      
+      setTimeout(() => {
+        bar.className = 'signal-bar weak';
+        text.textContent = '信号弱，请靠近...';
+      }, 1500);
+
+      setTimeout(() => {
+        bar.className = 'signal-bar active';
+        text.textContent = '已锁定目标！距离 1.2 米';
+        container.classList.add('found');
+        showToast('🎯 找到目标衣物：AW26-JK-01-BK-L (黑色 L码)');
+      }, 3000);
+    }
+
+    // Sort Wall Simulation
+    function initSortWall() {
+      const wall = document.getElementById('sortWall');
+      const stores = ['SH-01', 'SH-02', 'BJ-01', 'BJ-02', 'GZ-01', 'SZ-01', 'HZ-01', 'CD-01', 'WH-01', 'NJ-01', 'XA-01', 'CQ-01'];
+      let html = '';
+      stores.forEach((s, i) => {
+        html += `
+          <div class="sort-cell" id="cell-${i}">
+            <div class="cell-light"></div>
+            <div class="cell-id">${String(i+1).padStart(2, '0')}</div>
+            <div class="cell-store">${s}</div>
+          </div>
+        `;
+      });
+      wall.innerHTML = html;
+    }
+
+    function simulateSort() {
+      // Reset
+      document.querySelectorAll('.sort-cell').forEach(c => {
+        c.classList.remove('active', 'error');
+      });
+
+      // Random active
+      const targetIdx = Math.floor(Math.random() * 12);
+      const cell = document.getElementById(`cell-${targetIdx}`);
+      
+      setTimeout(() => {
+        cell.classList.add('active');
+        showToast(`✅ 扫描成功！请投入格口 ${String(targetIdx+1).padStart(2, '0')} (${cell.querySelector('.cell-store').textContent})`);
+      }, 300);
+
+      // Simulate error sometimes
+      if (Math.random() > 0.7) {
+        setTimeout(() => {
+          const errorIdx = (targetIdx + 3) % 12;
+          document.getElementById(`cell-${errorIdx}`).classList.add('error');
+          showToast(`❌ 警告：衣物不属于此订单，请检查！`);
+        }, 1500);
+      }
+    }
+
+    // Init
+    initSortWall();
+  </script>
+</body>
+</html>
